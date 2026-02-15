@@ -38,7 +38,6 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout }) => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    // Name the file clearly as a unified backup
     const date = new Date().toISOString().split('T')[0];
     link.download = `GraceAttend_FullBackup_${date}.church`;
     document.body.appendChild(link);
@@ -53,9 +52,16 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout }) => {
     if (!file) return;
 
     const reader = new FileReader();
+    reader.onerror = () => {
+      showMsg('error', 'Failed to read file on this device.');
+    };
+    
     reader.onload = (event) => {
       try {
-        const data = JSON.parse(event.target?.result as string);
+        const content = event.target?.result as string;
+        if (!content) throw new Error("File is empty");
+        
+        const data = JSON.parse(content);
         
         // Validate that we have members at least
         if (data.members && Array.isArray(data.members)) {
@@ -70,14 +76,18 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout }) => {
             setTimeout(() => window.location.reload(), 1500);
           }
         } else {
-          showMsg('error', 'Invalid file: Missing member data.');
+          showMsg('error', 'Invalid file: Data structure not recognized.');
         }
       } catch (err) {
-        showMsg('error', 'Failed to read backup file. Make sure it is a valid .church file.');
+        showMsg('error', 'Failed to process file. Ensure it is a valid GraceAttend backup.');
+        console.error("Import error:", err);
       }
     };
+    
+    // Some mobile devices handle blobs differently, readAsText is usually safest
     reader.readAsText(file);
-    // Reset the input so the same file can be selected again if needed
+    
+    // Clear the input value so the same file can be selected again
     e.target.value = '';
   };
 
@@ -103,7 +113,7 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout }) => {
             <h3 className="text-lg font-bold text-slate-800">Unified Data Backup</h3>
           </div>
           <p className="text-slate-500 text-sm mb-6 leading-relaxed">
-            Download a single <code>.church</code> file containing <strong>all members</strong> and <strong>all attendance records</strong>. Use this file to transfer everything to a new device or keep a secure copy.
+            Download a single <code>.church</code> file containing <strong>all members</strong> and <strong>all attendance records</strong>.
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
             <button
@@ -117,7 +127,13 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout }) => {
             <label className="flex-1 px-6 py-4 border-2 border-slate-900 text-slate-900 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition cursor-pointer text-center">
               <i className="fas fa-upload"></i>
               Restore Full Data
-              <input type="file" accept=".church" onChange={handleImportFile} className="hidden" />
+              {/* Note: accept includes application/json and text/plain to better support mobile file explorers */}
+              <input 
+                type="file" 
+                accept=".church,application/json,text/plain" 
+                onChange={handleImportFile} 
+                className="hidden" 
+              />
             </label>
           </div>
         </div>

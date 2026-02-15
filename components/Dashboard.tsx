@@ -88,11 +88,6 @@ const Dashboard: React.FC = () => {
     return filteredAttendance.filter(r => r.date === today).length;
   }, [filteredAttendance]);
 
-  const monthlyTotal = useMemo(() => {
-    const currentMonth = new Date().toISOString().slice(0, 7);
-    return filteredAttendance.filter(a => a.date.startsWith(currentMonth)).length;
-  }, [filteredAttendance]);
-
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
@@ -113,17 +108,13 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
           <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Present Today</p>
           <div className="flex items-end gap-2 mt-1">
             <p className="text-3xl font-black text-indigo-600">{todayCount}</p>
             <p className="text-xs text-slate-400 mb-1">/{filteredMembers.length}</p>
           </div>
-        </div>
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Monthly Total</p>
-          <p className="text-3xl font-black text-slate-800 mt-1">{monthlyTotal}</p>
         </div>
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
           <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Team Size</p>
@@ -167,7 +158,7 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* RIGHT PANEL: LEADERBOARD (Replaces Recent Activity) */}
+        {/* RIGHT PANEL: LEADERBOARD */}
         <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
           <h3 className="text-lg font-bold mb-8 flex items-center gap-2 text-slate-800">
             <i className="fas fa-award text-indigo-500"></i> Monthly Highs & Lows
