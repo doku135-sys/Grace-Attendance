@@ -5,6 +5,7 @@ const MEMBERS_KEY = 'church_members';
 const ATTENDANCE_KEY = 'church_attendance';
 const ADMIN_KEY = 'church_admin_creds';
 const SESSION_KEY = 'church_admin_session';
+const SYNC_KEY = 'church_sync_id';
 
 export const storageService = {
   // Authentication
@@ -64,7 +65,6 @@ export const storageService = {
     const updatedMembers = members.filter(m => m.id !== id);
     localStorage.setItem(MEMBERS_KEY, JSON.stringify(updatedMembers));
     
-    // Clean up attendance records for the deleted member
     const attendance = storageService.getAttendance();
     const updatedAttendance = attendance.filter(r => r.memberId !== id);
     localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(updatedAttendance));
@@ -92,6 +92,22 @@ export const storageService = {
     };
     localStorage.setItem(ATTENDANCE_KEY, JSON.stringify([...records, newRecord]));
     return true;
+  },
+
+  // Sync Helpers
+  getSyncId: () => localStorage.getItem(SYNC_KEY) || '',
+  setSyncId: (id: string) => localStorage.setItem(SYNC_KEY, id),
+  
+  exportFullState: () => {
+    return {
+      members: storageService.getMembers(),
+      attendance: storageService.getAttendance()
+    };
+  },
+
+  importFullState: (data: { members: Member[], attendance: AttendanceRecord[] }) => {
+    if (data.members) localStorage.setItem(MEMBERS_KEY, JSON.stringify(data.members));
+    if (data.attendance) localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(data.attendance));
   },
 
   clearAllData: () => {
