@@ -1,0 +1,7 @@
+{
+  "name": "GraceAttend - Church Attendance System",
+  "description": "A comprehensive church attendance management system featuring barcode scanning, member tracking, and AI-powered attendance insights.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
