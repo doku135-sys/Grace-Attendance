@@ -1,11 +1,11 @@
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { storageService } from '../services/storageService';
-import { MemberCategory } from '../types';
+import { MemberCategory, AttendanceRecord } from '../types';
 
 const AttendanceLog: React.FC = () => {
   const members = storageService.getMembers();
-  const attendance = storageService.getAttendance();
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>(storageService.getAttendance());
   const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
 
   const filteredData = useMemo(() => {
@@ -21,6 +21,17 @@ const AttendanceLog: React.FC = () => {
       })
       .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
   }, [attendance, members, filterMonth]);
+
+  const handleDeleteRecord = (memberId: string, timestamp: string) => {
+    const member = members.find(m => m.id === memberId);
+    const timeStr = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const dateStr = new Date(timestamp).toLocaleDateString();
+    
+    if (window.confirm(`Delete attendance record for ${member?.name || 'this member'} on ${dateStr} at ${timeStr}?`)) {
+      const updated = storageService.deleteAttendanceRecord(memberId, timestamp);
+      setAttendance([...updated]);
+    }
+  };
 
   const handleExportCSV = () => {
     if (filteredData.length === 0) return;
@@ -45,12 +56,9 @@ const AttendanceLog: React.FC = () => {
     link.href = url;
     link.setAttribute('download', `Attendance_Log_${filterMonth}.csv`);
     
-    // Safer download trigger that doesn't rely on being in the DOM for most modern browsers
-    // but we use a temporary append to ensure cross-browser compatibility.
     document.body.appendChild(link);
     link.click();
     
-    // Clean up with a slight delay to ensure the browser handled the click
     setTimeout(() => {
       if (link.parentNode === document.body) {
         document.body.removeChild(link);
@@ -100,12 +108,13 @@ const AttendanceLog: React.FC = () => {
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Date</th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Member Name</th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Team Category</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {filteredData.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-20 text-center">
+                  <td colSpan={5} className="px-6 py-20 text-center">
                     <div className="flex flex-col items-center gap-3 opacity-30">
                        <i className="fas fa-calendar-alt text-5xl"></i>
                        <p className="font-medium">No records found for this month.</p>
@@ -113,7 +122,7 @@ const AttendanceLog: React.FC = () => {
                   </td>
                 </tr>
               ) : filteredData.map((record, idx) => (
-                <tr key={`${record.memberId}-${idx}`} className="hover:bg-slate-50/50 transition">
+                <tr key={`${record.memberId}-${record.timestamp}`} className="hover:bg-slate-50/50 transition group">
                   <td className="px-6 py-4">
                     <div className="text-sm font-bold text-indigo-600">
                       {new Date(record.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -130,6 +139,15 @@ const AttendanceLog: React.FC = () => {
                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${getCategoryColor(record.category)}`}>
                       {record.category}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <button
+                      onClick={() => handleDeleteRecord(record.memberId, record.timestamp)}
+                      className="p-2 text-red-300 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Delete Entry"
+                    >
+                      <i className="fas fa-trash-alt"></i>
+                    </button>
                   </td>
                 </tr>
               ))}

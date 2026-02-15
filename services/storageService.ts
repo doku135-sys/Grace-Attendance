@@ -72,6 +72,7 @@ export const storageService = {
     return updatedMembers;
   },
 
+  // Attendance
   getAttendance: (): AttendanceRecord[] => {
     const data = localStorage.getItem(ATTENDANCE_KEY);
     return data ? JSON.parse(data) : [];
@@ -92,6 +93,13 @@ export const storageService = {
     };
     localStorage.setItem(ATTENDANCE_KEY, JSON.stringify([...records, newRecord]));
     return true;
+  },
+
+  deleteAttendanceRecord: (memberId: string, timestamp: string): AttendanceRecord[] => {
+    const records = storageService.getAttendance();
+    const updatedRecords = records.filter(r => !(r.memberId === memberId && r.timestamp === timestamp));
+    localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(updatedRecords));
+    return updatedRecords;
   },
 
   // Sync Helpers
