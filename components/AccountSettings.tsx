@@ -38,12 +38,14 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout }) => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `GraceAttend_Backup_${new Date().toISOString().split('T')[0]}.church`;
+    // Name the file clearly as a unified backup
+    const date = new Date().toISOString().split('T')[0];
+    link.download = `GraceAttend_FullBackup_${date}.church`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    showMsg('success', 'Backup file (.church) downloaded!');
+    showMsg('success', 'Full system backup downloaded (Includes Members + Attendance)!');
   };
 
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -54,20 +56,29 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout }) => {
     reader.onload = (event) => {
       try {
         const data = JSON.parse(event.target?.result as string);
+        
+        // Validate that we have members at least
         if (data.members && Array.isArray(data.members)) {
-          if (window.confirm('Import this backup file? This replaces your current list.')) {
+          const memberCount = data.members.length;
+          const attendanceCount = (data.attendance && Array.isArray(data.attendance)) ? data.attendance.length : 0;
+          
+          const confirmText = `Found ${memberCount} members and ${attendanceCount} attendance logs. This will REPLACE all current data on this device. Continue?`;
+          
+          if (window.confirm(confirmText)) {
             storageService.importFullState(data);
-            showMsg('success', 'File imported successfully! Restarting...');
+            showMsg('success', 'System restored successfully! Refreshing...');
             setTimeout(() => window.location.reload(), 1500);
           }
         } else {
-          showMsg('error', 'Invalid backup file format.');
+          showMsg('error', 'Invalid file: Missing member data.');
         }
       } catch (err) {
-        showMsg('error', 'Failed to read backup file.');
+        showMsg('error', 'Failed to read backup file. Make sure it is a valid .church file.');
       }
     };
     reader.readAsText(file);
+    // Reset the input so the same file can be selected again if needed
+    e.target.value = '';
   };
 
   return (
@@ -78,34 +89,34 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout }) => {
         </div>
         <div>
           <h2 className="text-2xl font-black text-slate-900 tracking-tight">System Settings</h2>
-          <p className="text-slate-500 text-sm font-medium">Manage data backups and security</p>
+          <p className="text-slate-500 text-sm font-medium">Manage unified data backups and security</p>
         </div>
       </div>
 
       <div className="space-y-6">
-        {/* FILE BACKUP SECTION */}
+        {/* UNIFIED FILE BACKUP SECTION */}
         <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 relative overflow-hidden group">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center shadow-sm">
-              <i className="fas fa-file-export"></i>
+              <i className="fas fa-database"></i>
             </div>
-            <h3 className="text-lg font-bold text-slate-800">Data Backup & Restore</h3>
+            <h3 className="text-lg font-bold text-slate-800">Unified Data Backup</h3>
           </div>
           <p className="text-slate-500 text-sm mb-6 leading-relaxed">
-            Save your church data to a <code>.church</code> file to move it between devices or keep a safe copy.
+            Download a single <code>.church</code> file containing <strong>all members</strong> and <strong>all attendance records</strong>. Use this file to transfer everything to a new device or keep a secure copy.
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
             <button
               type="button"
               onClick={handleExportFile}
-              className="flex-1 px-6 py-4 bg-slate-900 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition"
+              className="flex-1 px-6 py-4 bg-slate-900 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition shadow-lg shadow-slate-100"
             >
               <i className="fas fa-download"></i>
-              Download Backup
+              Download Full Backup
             </button>
             <label className="flex-1 px-6 py-4 border-2 border-slate-900 text-slate-900 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition cursor-pointer text-center">
               <i className="fas fa-upload"></i>
-              Restore from File
+              Restore Full Data
               <input type="file" accept=".church" onChange={handleImportFile} className="hidden" />
             </label>
           </div>
