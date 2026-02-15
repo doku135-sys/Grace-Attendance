@@ -113,6 +113,7 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout }) => {
              <h3 className="text-xl font-bold text-slate-900 mb-2">End Session</h3>
              <p className="text-slate-500 text-sm mb-6 max-w-xs">Logging out will return you to the login screen and clear your current active session.</p>
              <button 
+              type="button"
               onClick={onLogout}
               className="px-12 py-3.5 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-slate-800 transition shadow-xl shadow-slate-200"
              >

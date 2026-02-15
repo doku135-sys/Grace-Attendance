@@ -97,6 +97,5 @@ export const storageService = {
   clearAllData: () => {
     localStorage.removeItem(MEMBERS_KEY);
     localStorage.removeItem(ATTENDANCE_KEY);
-    window.location.reload();
   }
 };

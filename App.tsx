@@ -27,12 +27,9 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
-    if (window.confirm('Are you sure you want to sign out?')) {
-      storageService.setSession(false);
-      // Using location.href forces a hard reload which clears all in-memory React state
-      // and ensures the Login component is rendered with empty fields.
-      window.location.href = window.location.pathname;
-    }
+    storageService.setSession(false);
+    setIsAuthenticated(false);
+    setCurrentView('dashboard'); // Reset view for next login
   };
 
   const handleScan = (id: string) => {
@@ -55,6 +52,8 @@ const App: React.FC = () => {
 
   if (loading) return null;
 
+  // If not logged in, we only show the Login component. 
+  // Re-rendering this component clears the username/password state automatically.
   if (!isAuthenticated) {
     return <Login onLogin={handleLogin} />;
   }
@@ -77,6 +76,7 @@ const App: React.FC = () => {
             {(['dashboard', 'members', 'scan', 'log'] as View[]).map((view) => (
               <button
                 key={view}
+                type="button"
                 onClick={() => setCurrentView(view)}
                 className={`text-sm font-semibold transition-colors capitalize ${
                   currentView === view ? 'text-indigo-600' : 'text-slate-500 hover:text-indigo-500'
@@ -89,6 +89,7 @@ const App: React.FC = () => {
 
           <div className="flex items-center gap-3">
             <button 
+              type="button"
               onClick={() => setCurrentView('account')}
               className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
                 currentView === 'account' ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
@@ -98,6 +99,7 @@ const App: React.FC = () => {
               <i className="fas fa-user-cog"></i>
             </button>
             <button 
+              type="button"
               onClick={handleLogout}
               className="w-10 h-10 rounded-xl bg-red-50 text-red-500 hover:bg-red-100 transition flex items-center justify-center"
               title="Logout"
@@ -129,22 +131,22 @@ const App: React.FC = () => {
       </main>
 
       <footer className="md:hidden bg-white border-t sticky bottom-0 z-40 h-16 flex items-center justify-around px-4">
-        <button onClick={() => setCurrentView('dashboard')} className={`flex flex-col items-center ${currentView === 'dashboard' ? 'text-indigo-600' : 'text-slate-400'}`}>
+        <button type="button" onClick={() => setCurrentView('dashboard')} className={`flex flex-col items-center ${currentView === 'dashboard' ? 'text-indigo-600' : 'text-slate-400'}`}>
           <i className="fas fa-th-large text-lg"></i>
           <span className="text-[10px] font-bold uppercase mt-1">Home</span>
         </button>
-        <button onClick={() => setCurrentView('members')} className={`flex flex-col items-center ${currentView === 'members' ? 'text-indigo-600' : 'text-slate-400'}`}>
+        <button type="button" onClick={() => setCurrentView('members')} className={`flex flex-col items-center ${currentView === 'members' ? 'text-indigo-600' : 'text-slate-400'}`}>
           <i className="fas fa-users text-lg"></i>
           <span className="text-[10px] font-bold uppercase mt-1">Folks</span>
         </button>
-        <button onClick={() => setCurrentView('scan')} className={`relative flex items-center justify-center w-12 h-12 -mt-10 rounded-full bg-indigo-600 text-white shadow-lg shadow-indigo-200 ring-4 ring-slate-50 ${currentView === 'scan' ? 'bg-indigo-700' : ''}`}>
+        <button type="button" onClick={() => setCurrentView('scan')} className={`relative flex items-center justify-center w-12 h-12 -mt-10 rounded-full bg-indigo-600 text-white shadow-lg shadow-indigo-200 ring-4 ring-slate-50 ${currentView === 'scan' ? 'bg-indigo-700' : ''}`}>
           <i className="fas fa-barcode text-xl"></i>
         </button>
-        <button onClick={() => setCurrentView('log')} className={`flex flex-col items-center ${currentView === 'log' ? 'text-indigo-600' : 'text-slate-400'}`}>
+        <button type="button" onClick={() => setCurrentView('log')} className={`flex flex-col items-center ${currentView === 'log' ? 'text-indigo-600' : 'text-slate-400'}`}>
           <i className="fas fa-calendar-check text-lg"></i>
           <span className="text-[10px] font-bold uppercase mt-1">Logs</span>
         </button>
-        <button onClick={() => setCurrentView('account')} className={`flex flex-col items-center ${currentView === 'account' ? 'text-indigo-600' : 'text-slate-400'}`}>
+        <button type="button" onClick={() => setCurrentView('account')} className={`flex flex-col items-center ${currentView === 'account' ? 'text-indigo-600' : 'text-slate-400'}`}>
           <i className="fas fa-user-circle text-lg"></i>
           <span className="text-[10px] font-bold uppercase mt-1">Profile</span>
         </button>

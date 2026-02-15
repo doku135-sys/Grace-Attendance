@@ -64,9 +64,9 @@ const MemberManagement: React.FC = () => {
   };
 
   const handleDeleteMember = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this member? This will also remove their attendance history.')) {
+    if (window.confirm('Are you sure you want to delete this member?')) {
       const updatedMembers = storageService.deleteMember(id);
-      // Ensure we set a new array reference to trigger React re-render immediately
+      // We must spread into a new array to trigger React's re-render
       setMembers([...updatedMembers]);
     }
   };
@@ -94,6 +94,7 @@ const MemberManagement: React.FC = () => {
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-slate-800">Church Members ({members.length})</h2>
         <button 
+          type="button"
           onClick={() => handleOpenModal()}
           className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl hover:bg-indigo-700 transition flex items-center gap-2 shadow-lg shadow-indigo-200 font-bold"
         >
@@ -141,6 +142,7 @@ const MemberManagement: React.FC = () => {
                   <td className="px-6 py-4">
                     <div className="flex justify-center gap-1.5">
                       <button 
+                        type="button"
                         onClick={() => setShowQRModal(member)}
                         className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-lg transition"
                         title="View & Download QR"
@@ -148,12 +150,14 @@ const MemberManagement: React.FC = () => {
                         <i className="fas fa-qrcode"></i>
                       </button>
                       <button 
+                        type="button"
                         onClick={() => handleOpenModal(member)}
                         className="p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-lg transition"
                       >
                         <i className="fas fa-edit"></i>
                       </button>
                       <button 
+                        type="button"
                         onClick={() => handleDeleteMember(member.id)}
                         className="p-2 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition"
                         title="Delete Member"
@@ -253,7 +257,7 @@ const MemberManagement: React.FC = () => {
       {/* QR Code Modal */}
       {showQRModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-[2.5rem] p-10 w-full max-sm shadow-2xl animate-in zoom-in-95 duration-200 text-center">
+          <div className="bg-white rounded-[2.5rem] p-10 w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200 text-center">
             <h3 className="text-2xl font-black text-slate-900 mb-2">{showQRModal.name}</h3>
             <p className="text-xs font-bold text-indigo-500 uppercase tracking-widest mb-8">{showQRModal.id}</p>
             
@@ -267,12 +271,14 @@ const MemberManagement: React.FC = () => {
 
             <div className="space-y-3">
               <button
+                type="button"
                 onClick={() => downloadQRCode(showQRModal)}
                 className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-slate-800 transition shadow-xl shadow-slate-200"
               >
                 <i className="fas fa-download"></i> Download Image
               </button>
               <button
+                type="button"
                 onClick={() => setShowQRModal(null)}
                 className="w-full py-4 text-slate-400 font-bold hover:text-slate-600 transition"
               >
