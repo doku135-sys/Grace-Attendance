@@ -39,7 +39,7 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout }) => {
     const link = document.createElement('a');
     link.href = url;
     const date = new Date().toISOString().split('T')[0];
-    link.download = `GraceAttend_FullBackup_${date}.church`;
+    link.download = `GraceAttend_FullBackup_${date}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -113,7 +113,7 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout }) => {
             <h3 className="text-lg font-bold text-slate-800">Unified Data Backup</h3>
           </div>
           <p className="text-slate-500 text-sm mb-6 leading-relaxed">
-            Download a single <code>.church</code> file containing <strong>all members</strong> and <strong>all attendance records</strong>.
+            Download a single <code>.json</code> file containing <strong>all members</strong> and <strong>all attendance records</strong>.
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
             <button
@@ -127,10 +127,9 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout }) => {
             <label className="flex-1 px-6 py-4 border-2 border-slate-900 text-slate-900 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition cursor-pointer text-center">
               <i className="fas fa-upload"></i>
               Restore Full Data
-              {/* Note: accept includes application/json and text/plain to better support mobile file explorers */}
               <input 
                 type="file" 
-                accept=".church,application/json,text/plain" 
+                accept="application/json,.json,text/plain,.church" 
                 onChange={handleImportFile} 
                 className="hidden" 
               />
