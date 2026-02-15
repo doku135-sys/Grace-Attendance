@@ -17,7 +17,9 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setIsAuthenticated(storageService.isAuthenticated());
+    // Check initial authentication state from storage
+    const auth = storageService.isAuthenticated();
+    setIsAuthenticated(auth);
     setLoading(false);
   }, []);
 
@@ -27,9 +29,13 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
+    // Clear storage session first
     storageService.setSession(false);
+    // Update React state to trigger a re-render
+    // This will cause the component to show the Login screen instantly
     setIsAuthenticated(false);
-    setCurrentView('dashboard'); // Reset view for next login
+    // Reset view for next time the user logs in
+    setCurrentView('dashboard');
   };
 
   const handleScan = (id: string) => {
@@ -50,10 +56,10 @@ const App: React.FC = () => {
     setTimeout(() => setScanStatus(''), 3000);
   };
 
+  // Prevent flash of login screen while checking session
   if (loading) return null;
 
-  // If not logged in, we only show the Login component. 
-  // Re-rendering this component clears the username/password state automatically.
+  // If not logged in, only show the Login portal
   if (!isAuthenticated) {
     return <Login onLogin={handleLogin} />;
   }

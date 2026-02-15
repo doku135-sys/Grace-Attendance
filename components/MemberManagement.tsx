@@ -63,10 +63,13 @@ const MemberManagement: React.FC = () => {
     setShowModal(false);
   };
 
-  const handleDeleteMember = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this member?')) {
+  const handleDeleteMember = (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (window.confirm('Are you sure you want to delete this member? This will also remove their attendance history.')) {
       const updatedMembers = storageService.deleteMember(id);
-      // We must spread into a new array to trigger React's re-render
+      // Explicitly spread into a new array to force React to detect the state change
       setMembers([...updatedMembers]);
     }
   };
@@ -158,7 +161,7 @@ const MemberManagement: React.FC = () => {
                       </button>
                       <button 
                         type="button"
-                        onClick={() => handleDeleteMember(member.id)}
+                        onClick={(e) => handleDeleteMember(e, member.id)}
                         className="p-2 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition"
                         title="Delete Member"
                       >
