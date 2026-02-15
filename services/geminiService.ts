@@ -2,11 +2,20 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Member, AttendanceRecord } from "../types";
 
-// Always use process.env.API_KEY directly for initialization
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Helper to safely get API key from environment
+const getApiKey = () => {
+  try {
+    return process.env.API_KEY;
+  } catch (e) {
+    return null;
+  }
+};
 
 export const getAttendanceInsights = async (members: Member[], attendance: AttendanceRecord[]) => {
-  if (!process.env.API_KEY || attendance.length === 0) return null;
+  const apiKey = getApiKey();
+  if (!apiKey || attendance.length === 0) return null;
+
+  const ai = new GoogleGenAI({ apiKey });
 
   const prompt = `
     Analyze the following church attendance data for the last month. 
@@ -41,7 +50,6 @@ export const getAttendanceInsights = async (members: Member[], attendance: Atten
       }
     });
 
-    // Directly access the .text property
     const jsonStr = response.text?.trim();
     if (!jsonStr) return null;
     return JSON.parse(jsonStr);
