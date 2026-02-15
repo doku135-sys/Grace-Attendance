@@ -1,10 +1,13 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { storageService } from '../services/storageService';
 
 interface AccountSettingsProps {
   onLogout?: () => void;
 }
+
+// A dedicated public bin for GraceAttend sync
+const SYNC_API_URL = 'https://api.npoint.io/e1f86847c2936798a72b';
 
 const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout }) => {
   const [newPassword, setNewPassword] = useState('');
@@ -20,7 +23,7 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout }) => {
       return;
     }
     if (newPassword.length < 4) {
-      setMessage({ type: 'error', text: 'Password too short.' });
+      setMessage({ type: 'error', text: 'Password too short (min 4 chars).' });
       return;
     }
     storageService.updateAdminPassword(newPassword);
@@ -30,66 +33,88 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout }) => {
     setTimeout(() => setMessage({ type: '', text: '' }), 3000);
   };
 
-  // Simple Cloud Sync Logic using a public JSON store service
   const handlePushToCloud = async () => {
-    if (!syncId || syncId.length < 5) {
-      setMessage({ type: 'error', text: 'Please enter a Sync Key (at least 5 chars).' });
+    const cleanSyncId = syncId.trim();
+    if (!cleanSyncId || cleanSyncId.length < 5) {
+      setMessage({ type: 'error', text: 'Please enter a Sync Key (at least 5 characters).' });
       return;
     }
     
     setIsSyncing(true);
-    storageService.setSyncId(syncId);
-    const data = storageService.exportFullState();
-
+    setMessage({ type: 'info', text: 'Uploading data to cloud...' });
+    storageService.setSyncId(cleanSyncId);
+    
     try {
-      // Using npoint.io as a simple public JSON store for this demo
-      // In a real app, you would use a dedicated API
-      const response = await fetch(`https://api.npoint.io/0880340578635836a995`, {
-        method: 'POST',
+      // 1. Get existing registry
+      const getRes = await fetch(SYNC_API_URL);
+      let registry = {};
+      if (getRes.ok) {
+        registry = await getRes.json();
+      }
+
+      // 2. Add/Update our church data
+      const data = storageService.exportFullState();
+      const updatedRegistry = { ...registry, [cleanSyncId]: data };
+
+      // 3. Save back to cloud
+      const putRes = await fetch(SYNC_API_URL, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [syncId]: data })
+        body: JSON.stringify(updatedRegistry)
       });
 
-      if (response.ok) {
-        setMessage({ type: 'success', text: 'Data uploaded to cloud!' });
+      if (putRes.ok) {
+        setMessage({ type: 'success', text: 'Backup Successful! You can now fetch this on other devices.' });
       } else {
-        throw new Error();
+        throw new Error('Cloud storage rejected the update.');
       }
     } catch (err) {
-      // Fallback: If npoint fails, explain that a real DB is needed
-      setMessage({ type: 'error', text: 'Cloud sync requires a database setup. Data remains local for now.' });
+      console.error("Sync Error:", err);
+      setMessage({ type: 'error', text: 'Upload failed. Check your internet connection.' });
     } finally {
       setIsSyncing(false);
-      setTimeout(() => setMessage({ type: '', text: '' }), 4000);
+      setTimeout(() => setMessage({ type: '', text: '' }), 5000);
     }
   };
 
   const handlePullFromCloud = async () => {
-    if (!syncId) {
-      setMessage({ type: 'error', text: 'Enter your Church Sync Key first.' });
+    const cleanSyncId = syncId.trim();
+    if (!cleanSyncId) {
+      setMessage({ type: 'error', text: 'Enter your unique Church Sync Key first.' });
       return;
     }
     
     setIsSyncing(true);
+    setMessage({ type: 'info', text: 'Fetching your data...' });
+    
     try {
-      const response = await fetch(`https://api.npoint.io/0880340578635836a995`);
+      const response = await fetch(SYNC_API_URL);
+      if (!response.ok) throw new Error('Cloud service unavailable.');
+      
       const allData = await response.json();
-      const churchData = allData[syncId];
+      const churchData = allData[cleanSyncId];
 
-      if (churchData) {
-        if (window.confirm('This will overwrite your current device data with the cloud backup. Continue?')) {
+      if (churchData && churchData.members) {
+        if (window.confirm('Cloud data found! This will replace everything on this device. Continue?')) {
           storageService.importFullState(churchData);
-          setMessage({ type: 'success', text: 'Data synced from cloud!' });
-          // Optional: Force a slight delay before UI update
+          storageService.setSyncId(cleanSyncId);
+          setMessage({ type: 'success', text: 'Sync Complete! Restarting app...' });
+          
+          // CRITICAL: Reload the app to ensure all components refresh with the new data
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500);
         }
       } else {
-        setMessage({ type: 'error', text: 'No data found for this Sync Key.' });
+        setMessage({ type: 'error', text: 'No data found for this Sync Key. Did you upload from the other device first?' });
       }
     } catch (err) {
-      setMessage({ type: 'error', text: 'Could not connect to sync service.' });
+      setMessage({ type: 'error', text: 'Sync failed. Ensure you are online and the key is correct.' });
     } finally {
       setIsSyncing(false);
-      setTimeout(() => setMessage({ type: '', text: '' }), 4000);
+      if (message.type !== 'success') {
+        setTimeout(() => setMessage({ type: '', text: '' }), 5000);
+      }
     }
   };
 
@@ -117,23 +142,22 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout }) => {
                <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
                  <i className="fas fa-sync-alt"></i>
                </div>
-               <h3 className="text-lg font-bold text-slate-800">Cloud Sync (Multi-Device)</h3>
+               <h3 className="text-lg font-bold text-slate-800">Multi-Device Sync</h3>
             </div>
             
             <p className="text-slate-500 text-sm mb-6">
-              Use a <strong>Church Sync Key</strong> to move your members and attendance logs to another phone or tablet. 
-              Upload on one device, then Fetch on the other.
+              Share your member list across multiple devices. Use a private <strong>Church Sync Key</strong> to back up and restore your data instantly.
             </p>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Church Sync Key</label>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Church Sync Key (Keep it Private)</label>
                 <input
                   type="text"
                   value={syncId}
                   onChange={(e) => setSyncId(e.target.value)}
                   className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition font-bold text-slate-700"
-                  placeholder="e.g. Grace-Chicago-Main"
+                  placeholder="e.g. Grace-Church-2024"
                 />
               </div>
 
@@ -145,7 +169,7 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout }) => {
                   className="flex-1 px-6 py-4 bg-blue-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition disabled:opacity-50"
                 >
                   <i className={`fas ${isSyncing ? 'fa-spinner fa-spin' : 'fa-cloud-upload-alt'}`}></i>
-                  Upload to Cloud
+                  Upload (Send)
                 </button>
                 <button
                   type="button"
@@ -154,7 +178,7 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout }) => {
                   className="flex-1 px-6 py-4 border-2 border-blue-600 text-blue-600 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-blue-50 transition disabled:opacity-50"
                 >
                   <i className={`fas ${isSyncing ? 'fa-spinner fa-spin' : 'fa-cloud-download-alt'}`}></i>
-                  Fetch from Cloud
+                  Fetch (Receive)
                 </button>
               </div>
             </div>
@@ -166,7 +190,7 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout }) => {
               <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
                 <i className="fas fa-lock"></i>
               </div>
-              Admin Credentials
+              Update Admin Password
             </h3>
             <form onSubmit={handleUpdatePassword} className="space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -195,16 +219,22 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout }) => {
                 type="submit"
                 className="px-10 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-50"
               >
-                Update Password
+                Save Password
               </button>
             </form>
           </div>
 
           {message.text && (
             <div className={`p-5 rounded-2xl text-sm font-bold flex items-center gap-3 border animate-in slide-in-from-top-2 ${
-              message.type === 'success' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'
+              message.type === 'success' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 
+              message.type === 'info' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+              'bg-red-50 text-red-600 border-red-100'
             }`}>
-              <i className={`fas ${message.type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}`}></i>
+              <i className={`fas ${
+                message.type === 'success' ? 'fa-check-circle' : 
+                message.type === 'info' ? 'fa-circle-notch fa-spin' :
+                'fa-exclamation-circle'
+              }`}></i>
               {message.text}
             </div>
           )}
@@ -216,19 +246,19 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout }) => {
                <i className="fas fa-shield-alt text-[12rem]"></i>
             </div>
             <div className="relative z-10">
-              <h4 className="text-xl font-bold mb-4">Sync Tips</h4>
+              <h4 className="text-xl font-bold mb-4">Sync Instruction</h4>
               <ul className="space-y-4">
                 <li className="flex gap-3 text-xs font-medium text-slate-300">
                   <i className="fas fa-check-circle text-emerald-400 mt-0.5"></i>
-                  Create a unique "Church Name" as your Sync Key.
+                  Step 1: On your main device, click "Upload".
                 </li>
                 <li className="flex gap-3 text-xs font-medium text-slate-300">
                   <i className="fas fa-check-circle text-emerald-400 mt-0.5"></i>
-                  Always "Upload" after you add new members.
+                  Step 2: On the new device, use the SAME key.
                 </li>
                 <li className="flex gap-3 text-xs font-medium text-slate-300">
                   <i className="fas fa-check-circle text-emerald-400 mt-0.5"></i>
-                  Click "Fetch" on your other devices to download the latest data.
+                  Step 3: Click "Fetch" and wait for the auto-reload.
                 </li>
               </ul>
             </div>
