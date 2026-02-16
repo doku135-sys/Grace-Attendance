@@ -1,5 +1,6 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { storageService } from '../services/storageService';
 import { Member, MemberCategory } from '../types';
 
@@ -10,10 +11,13 @@ const CATEGORIES: MemberCategory[] = [
   'Usher'
 ];
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 const MemberManagement: React.FC = () => {
   const [members, setMembers] = useState<Member[]>(storageService.getMembers());
   const [showModal, setShowModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState<Member | null>(null);
+  const [showStatsModal, setShowStatsModal] = useState<Member | null>(null);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -22,6 +26,8 @@ const MemberManagement: React.FC = () => {
     birthday: '',
     category: 'Praise and Worship' as MemberCategory,
   });
+
+  const attendance = storageService.getAttendance();
 
   const handleOpenModal = (member?: Member) => {
     if (member) {
@@ -69,7 +75,6 @@ const MemberManagement: React.FC = () => {
     
     if (window.confirm('Are you sure you want to delete this member? This will also remove their attendance history.')) {
       const updatedMembers = storageService.deleteMember(id);
-      // Explicitly spread into a new array to force React to detect the state change
       setMembers([...updatedMembers]);
     }
   };
@@ -92,6 +97,23 @@ const MemberManagement: React.FC = () => {
     }
   };
 
+  const memberStatsData = useMemo(() => {
+    if (!showStatsModal) return [];
+    const currentYear = new Date().getFullYear().toString();
+    const memberAttendance = attendance.filter(r => r.memberId === showStatsModal.id && r.date.startsWith(currentYear));
+    
+    const monthlyCounts = new Array(12).fill(0);
+    memberAttendance.forEach(record => {
+      const monthIndex = new Date(record.date).getMonth();
+      monthlyCounts[monthIndex]++;
+    });
+
+    return MONTHS.map((name, index) => ({
+      name,
+      count: monthlyCounts[index]
+    }));
+  }, [showStatsModal, attendance]);
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex justify-between items-center">
@@ -112,7 +134,7 @@ const MemberManagement: React.FC = () => {
               <tr>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Member</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Category</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Birthday</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Birthday</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Contact</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Actions</th>
               </tr>
@@ -143,7 +165,15 @@ const MemberManagement: React.FC = () => {
                     <div className="flex items-center gap-2"><i className="fas fa-envelope text-[10px]"></i> {member.email}</div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex justify-center gap-1.5">
+                    <div className="flex justify-center gap-1">
+                      <button 
+                        type="button"
+                        onClick={() => setShowStatsModal(member)}
+                        className="p-2 text-emerald-500 hover:bg-emerald-50 rounded-lg transition"
+                        title="View Attendance Chart"
+                      >
+                        <i className="fas fa-chart-bar"></i>
+                      </button>
                       <button 
                         type="button"
                         onClick={() => setShowQRModal(member)}
@@ -156,6 +186,7 @@ const MemberManagement: React.FC = () => {
                         type="button"
                         onClick={() => handleOpenModal(member)}
                         className="p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-lg transition"
+                        title="Edit Profile"
                       >
                         <i className="fas fa-edit"></i>
                       </button>
@@ -175,6 +206,60 @@ const MemberManagement: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* Attendance Stats Modal */}
+      {showStatsModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-2xl shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-start mb-8">
+              <div>
+                <h3 className="text-2xl font-black text-slate-900">{showStatsModal.name}</h3>
+                <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mt-1">
+                  <i className="fas fa-calendar-alt mr-2 text-indigo-500"></i> Annual Attendance • {new Date().getFullYear()}
+                </p>
+              </div>
+              <button 
+                onClick={() => setShowStatsModal(null)}
+                className="w-10 h-10 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center hover:bg-slate-200 transition"
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+
+            <div className="h-[300px] w-full mb-8">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={memberStatsData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} dy={10} fontStyle="bold" />
+                  <YAxis fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip 
+                    cursor={{ fill: '#f8fafc' }}
+                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', padding: '12px' }}
+                  />
+                  <Bar dataKey="count" radius={[6, 6, 0, 0]} barSize={25}>
+                    {memberStatsData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.count > 0 ? '#6366f1' : '#f1f5f9'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 text-center">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total check-ins</p>
+                <p className="text-2xl font-black text-slate-800">{memberStatsData.reduce((acc, curr) => acc + curr.count, 0)}</p>
+              </div>
+              <div className="bg-indigo-50 p-6 rounded-3xl border border-indigo-100 text-center">
+                <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Most Active Month</p>
+                <p className="text-2xl font-black text-indigo-700">
+                  {memberStatsData.reduce((prev, current) => (prev.count > current.count) ? prev : current).name}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add/Edit Modal */}
       {showModal && (
