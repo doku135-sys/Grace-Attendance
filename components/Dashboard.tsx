@@ -1,9 +1,8 @@
 
-import React, { useMemo, useEffect, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { storageService } from '../services/storageService';
-import { getAttendanceInsights } from '../services/geminiService';
-import { Member, AttendanceRecord, AIInsight, MemberCategory } from '../types';
+import { MemberCategory } from '../types';
 
 const CATEGORIES: MemberCategory[] = [
   'Praise and Worship',
@@ -15,19 +14,7 @@ const CATEGORIES: MemberCategory[] = [
 const Dashboard: React.FC = () => {
   const members = storageService.getMembers();
   const attendance = storageService.getAttendance();
-  const [insights, setInsights] = useState<AIInsight | null>(null);
-  const [loadingInsights, setLoadingInsights] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<MemberCategory | 'All'>('All');
-
-  useEffect(() => {
-    const fetchInsights = async () => {
-      setLoadingInsights(true);
-      const data = await getAttendanceInsights(members, attendance);
-      setInsights(data);
-      setLoadingInsights(false);
-    };
-    fetchInsights();
-  }, []);
 
   const filteredMembers = useMemo(() => {
     if (selectedCategory === 'All') return members;
@@ -213,70 +200,6 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {selectedCategory === 'All' && (
-        <div className="bg-indigo-900 text-white p-10 rounded-[2.5rem] shadow-2xl overflow-hidden relative border border-white/5">
-           <div className="absolute -top-10 -right-10 p-8 opacity-5">
-              <i className="fas fa-church text-[15rem]"></i>
-           </div>
-           <div className="relative z-10">
-             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-               <h3 className="text-2xl font-black flex items-center gap-4">
-                <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center border border-white/10 backdrop-blur-md">
-                  <i className="fas fa-wand-magic-sparkles text-amber-300"></i>
-                </div>
-                AI Ministry Insights
-              </h3>
-              <div className="bg-white/10 px-4 py-1.5 rounded-full border border-white/5 backdrop-blur-sm text-xs font-bold uppercase tracking-widest text-indigo-200">
-                Powered by Gemini
-              </div>
-             </div>
-            {loadingInsights ? (
-              <div className="animate-pulse space-y-6 py-4">
-                <div className="h-4 bg-white/10 rounded-full w-3/4"></div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="h-24 bg-white/10 rounded-3xl"></div>
-                  <div className="h-24 bg-white/10 rounded-3xl"></div>
-                </div>
-              </div>
-            ) : insights ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                <div className="space-y-6">
-                  <p className="text-indigo-50 text-xl leading-relaxed font-medium">{insights.summary}</p>
-                  <div className="bg-indigo-800/40 p-6 rounded-3xl border border-white/10 backdrop-blur-md shadow-inner">
-                     <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-300 mb-2">Growth Analysis</p>
-                     <p className="text-sm italic text-indigo-100">{insights.growthTrend}</p>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-300 mb-4 flex items-center gap-2">
-                    <i className="fas fa-user-clock text-amber-400"></i> Pastoral Care Required (Missed 2+ Weeks)
-                  </p>
-                  <div className="flex flex-wrap gap-2.5">
-                    {insights.atRiskMembers.length > 0 ? insights.atRiskMembers.map(m => (
-                      <span key={m} className="bg-white/10 hover:bg-white/20 transition cursor-default text-white px-5 py-2.5 rounded-2xl text-sm font-bold border border-white/10 shadow-sm backdrop-blur-sm">
-                        {m}
-                      </span>
-                    )) : (
-                      <div className="w-full bg-emerald-500/20 text-emerald-200 p-6 rounded-3xl border border-emerald-500/30 flex items-center gap-4 backdrop-blur-sm">
-                         <div className="w-10 h-10 bg-emerald-500/20 rounded-full flex items-center justify-center">
-                           <i className="fas fa-check"></i>
-                         </div>
-                         <span className="font-bold">Perfect Attendance! No pastoral follow-up needed today.</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center py-12 text-center bg-white/5 rounded-[2rem] border border-white/5">
-                 <i className="fas fa-sparkles text-4xl mb-4 text-indigo-400 opacity-50"></i>
-                 <p className="text-indigo-200 font-medium">Add more attendance data to unlock AI-powered ministry insights.</p>
-              </div>
-            )}
-           </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -136,6 +136,13 @@ const App: React.FC = () => {
         )}
       </main>
 
+      {/* Global Desktop Footer / Mobile Non-Sticky Footer */}
+      <div className="w-full pb-20 md:pb-8 pt-4">
+        <p className="text-center text-[10px] font-black text-slate-300 uppercase tracking-[0.5em]">
+          © RT
+        </p>
+      </div>
+
       <footer className="md:hidden bg-white border-t sticky bottom-0 z-40 h-16 flex items-center justify-around px-4">
         <button type="button" onClick={() => setCurrentView('dashboard')} className={`flex flex-col items-center ${currentView === 'dashboard' ? 'text-indigo-600' : 'text-slate-400'}`}>
           <i className="fas fa-th-large text-lg"></i>
