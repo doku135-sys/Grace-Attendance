@@ -3,15 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { storageService } from '../services/storageService';
 import { MemberCategory, ServiceGroup, Member, AttendanceRecord } from '../types';
-
-const CATEGORIES: MemberCategory[] = [
-  'Praise and Worship',
-  'Multimedia',
-  'Service Management',
-  'Usher'
-];
-
-const SERVICE_GROUPS: ServiceGroup[] = ['KC 1', 'KC 2', 'KC 3'];
+import { CATEGORIES, SERVICE_GROUPS } from '../constants';
 
 interface DashboardProps {
   members: Member[];
@@ -39,20 +31,35 @@ const Dashboard: React.FC<DashboardProps> = ({ members, attendance }) => {
     return attendance.filter(record => categoryMemberIds.has(record.memberId));
   }, [attendance, filteredMembers, selectedCategory, selectedGroup]);
 
+  const currentMonthNameYear = useMemo(() => {
+    const now = new Date();
+    return now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  }, []);
+
   const weeklyData = useMemo(() => {
     const now = new Date();
-    const currentMonth = now.toISOString().slice(0, 7);
-    const monthlyAttendance = filteredAttendance.filter(a => a.date.startsWith(currentMonth));
+    const year = now.getFullYear();
+    const month = now.getMonth();
     
-    const weeks: { [key: string]: number } = { 'Week 1': 0, 'Week 2': 0, 'Week 3': 0, 'Week 4': 0, 'Week 5': 0 };
-    
-    monthlyAttendance.forEach(a => {
-      const day = new Date(a.date).getDate();
-      const weekIndex = Math.ceil(day / 7);
-      weeks[`Week ${weekIndex}`]++;
-    });
+    // Find all Sundays in the current month
+    const sundays: { date: string, label: string }[] = [];
+    const date = new Date(year, month, 1);
+    while (date.getMonth() === month) {
+      if (date.getDay() === 0) { // 0 is Sunday
+        const day = date.getDate();
+        const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        sundays.push({ 
+          date: formattedDate,
+          label: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        });
+      }
+      date.setDate(date.getDate() + 1);
+    }
 
-    return Object.entries(weeks).map(([name, count]) => ({ name, count }));
+    return sundays.map(sunday => {
+      const count = filteredAttendance.filter(a => a.date === sunday.date).length;
+      return { name: sunday.label, count };
+    });
   }, [filteredAttendance]);
 
   // --- LEADERBOARD LOGIC ---
@@ -103,7 +110,7 @@ const Dashboard: React.FC<DashboardProps> = ({ members, attendance }) => {
               className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm text-slate-700"
             >
               <option value="All">All Ministries</option>
-              {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+              {CATEGORIES.map((cat: MemberCategory) => <option key={cat} value={cat}>{cat}</option>)}
             </select>
           </div>
           <div className="flex items-center gap-2">
@@ -114,7 +121,7 @@ const Dashboard: React.FC<DashboardProps> = ({ members, attendance }) => {
               className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm text-slate-700"
             >
               <option value="All">All Groups</option>
-              {SERVICE_GROUPS.map(group => <option key={group} value={group}>{group}</option>)}
+              {SERVICE_GROUPS.map((group: ServiceGroup) => <option key={group} value={group}>{group}</option>)}
             </select>
           </div>
         </div>
@@ -148,7 +155,7 @@ const Dashboard: React.FC<DashboardProps> = ({ members, attendance }) => {
             <h3 className="text-lg font-bold flex items-center gap-2 text-slate-800">
               <i className="fas fa-chart-bar text-emerald-500"></i> {selectedCategory === 'All' && selectedGroup === 'All' ? 'Church' : `${selectedCategory !== 'All' ? selectedCategory : ''} ${selectedGroup !== 'All' ? selectedGroup : ''}`} Weekly
             </h3>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-full">Current Month</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-full">{currentMonthNameYear}</span>
           </div>
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">

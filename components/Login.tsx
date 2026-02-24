@@ -13,10 +13,14 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    const creds = storageService.getAdminCreds();
+    const adminCreds = storageService.getAdminCreds();
+    const scannerCreds = storageService.getScannerCreds();
     
-    if (username === creds.username && password === creds.password) {
-      storageService.setSession(true);
+    if (username === adminCreds.username && password === adminCreds.password) {
+      storageService.setSession(true, 'admin');
+      onLogin();
+    } else if (username === scannerCreds.username && password === scannerCreds.password) {
+      storageService.setSession(true, 'scanner');
       onLogin();
     } else {
       setError('Invalid username or password');
@@ -49,7 +53,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition"
-                  placeholder="admin"
+                  placeholder=""
                 />
               </div>
             </div>
@@ -66,7 +70,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition"
-                  placeholder="••••••••"
+                  placeholder=""
                 />
               </div>
             </div>

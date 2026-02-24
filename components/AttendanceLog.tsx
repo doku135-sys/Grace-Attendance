@@ -3,6 +3,11 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { storageService } from '../services/storageService';
 import { MemberCategory, AttendanceRecord, ServiceGroup, Member } from '../types';
 
+import { CATEGORIES, SERVICE_GROUPS } from '../constants';
+
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
 interface AttendanceLogProps {
   members: Member[];
   attendance: AttendanceRecord[];
@@ -11,6 +16,12 @@ interface AttendanceLogProps {
 
 const AttendanceLog: React.FC<AttendanceLogProps> = ({ members, attendance, onUpdate }) => {
   const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportSettings, setExportSettings] = useState({
+    month: new Date().toISOString().slice(0, 7),
+    category: 'Usher' as MemberCategory,
+    serviceGroup: 'KC 1' as ServiceGroup
+  });
 
   const filteredData = useMemo(() => {
     return attendance
@@ -40,41 +51,120 @@ const AttendanceLog: React.FC<AttendanceLogProps> = ({ members, attendance, onUp
     }
   };
 
-  const handleExportCSV = () => {
-    if (filteredData.length === 0) return;
-
-    const headers = ['Timestamp', 'Date', 'Member ID', 'Name', 'Category', 'Service Group', 'Phone', 'Email'];
-    const rows = filteredData.map(r => [
-      new Date(r.timestamp).toLocaleString(),
-      r.date,
-      r.memberId,
-      r.memberName,
-      r.category,
-      r.serviceGroup,
-      r.phone,
-      r.email
-    ]);
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `Attendance_Log_${filterMonth}.csv`);
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    const [year, month] = exportSettings.month.split('-').map(Number);
+    const monthName = new Date(year, month - 1).toLocaleString('en-US', { month: 'long' });
     
-    document.body.appendChild(link);
-    link.click();
+    // 1. Title
+    doc.setFontSize(20);
+    doc.setTextColor(79, 70, 229); // Indigo-600
+    doc.text(`Monthly Attendance Report: ${monthName} ${year}`, 14, 22);
     
-    setTimeout(() => {
-      if (link.parentNode === document.body) {
-        document.body.removeChild(link);
+    doc.setFontSize(10);
+    doc.setTextColor(100, 116, 139); // Slate-500
+    doc.text(`Team: ${exportSettings.category} | Group: ${exportSettings.serviceGroup}`, 14, 30);
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 36);
+
+    // 2. Weekly Attendance Graph (Simple Bar Chart)
+    const sundays: string[] = [];
+    const d = new Date(year, month - 1, 1);
+    while (d.getMonth() === month - 1) {
+      if (d.getDay() === 0) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        sundays.push(`${y}-${m}-${day}`);
       }
-      URL.revokeObjectURL(url);
-    }, 100);
+      d.setDate(d.getDate() + 1);
+    }
+
+    const teamAttendance = attendance.filter(a => {
+      const m = members.find(mem => mem.id === a.memberId);
+      return m?.category === exportSettings.category && 
+             m?.serviceGroup === exportSettings.serviceGroup && 
+             a.date.startsWith(exportSettings.month);
+    });
+
+    const weeklyCounts = sundays.map(sun => teamAttendance.filter(a => a.date === sun).length);
+    const maxCount = Math.max(...weeklyCounts, 5);
+
+    doc.setFontSize(14);
+    doc.setTextColor(30, 41, 59); // Slate-800
+    doc.text(`Weekly ${exportSettings.category} Attendance Summary`, 14, 50);
+
+    // Draw simple bars
+    const startX = 20;
+    const startY = 90;
+    const barWidth = 25;
+    const spacing = 10;
+    const chartHeight = 30;
+
+    sundays.forEach((sun, i) => {
+      const count = weeklyCounts[i];
+      const barHeight = (count / maxCount) * chartHeight;
+      
+      // Bar
+      doc.setFillColor(16, 185, 129); // Emerald-500
+      doc.rect(startX + i * (barWidth + spacing), startY - barHeight, barWidth, barHeight, 'F');
+      
+      // Label
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      const [y, m, day] = sun.split('-').map(Number);
+      const label = new Date(y, m - 1, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      doc.text(label, startX + i * (barWidth + spacing), startY + 5);
+      
+      // Count
+      doc.setFontSize(10);
+      doc.setTextColor(30, 41, 59);
+      doc.text(count.toString(), startX + i * (barWidth + spacing) + barWidth/2 - 2, startY - barHeight - 2);
+    });
+
+    // 3. Table for the selected group
+    let currentY = 110;
+
+    doc.setFontSize(14);
+    doc.setTextColor(79, 70, 229);
+    doc.text(`${exportSettings.category} - ${exportSettings.serviceGroup} Detailed List`, 14, currentY);
+    currentY += 5;
+
+    const groupMembers = members.filter(m => m.category === exportSettings.category && m.serviceGroup === exportSettings.serviceGroup);
+    const tableHeaders = ['Name', ...sundays.map(s => {
+      const [y, m, day] = s.split('-').map(Number);
+      return new Date(y, m - 1, day).toLocaleDateString('en-US', { day: 'numeric' });
+    })];
+    
+    const tableRows = groupMembers.map(m => {
+      const row = [m.name];
+      sundays.forEach(sun => {
+        const present = attendance.some(a => a.memberId === m.id && a.date === sun);
+        row.push(present ? 'P' : 'A');
+      });
+      return row;
+    });
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [tableHeaders],
+      body: tableRows,
+      theme: 'grid',
+      headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold' },
+      styles: { fontSize: 9, cellPadding: 3 },
+      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 40 } },
+      didParseCell: (data) => {
+        if (data.section === 'body' && data.column.index > 0) {
+          if (data.cell.text[0] === 'P') {
+            data.cell.styles.textColor = [16, 185, 129]; // Emerald
+          } else {
+            data.cell.styles.textColor = [244, 63, 94]; // Rose
+          }
+        }
+      }
+    });
+
+    doc.save(`${exportSettings.category}_${exportSettings.serviceGroup}_Report_${exportSettings.month}.pdf`);
+    setShowExportModal(false);
   };
 
   const getCategoryColor = (category: string) => {
@@ -99,15 +189,71 @@ const AttendanceLog: React.FC<AttendanceLogProps> = ({ members, attendance, onUp
             className="flex-1 md:flex-none px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm font-bold text-slate-700"
           />
           <button 
-            onClick={handleExportCSV}
-            disabled={filteredData.length === 0}
+            onClick={() => setShowExportModal(true)}
+            disabled={members.length === 0}
             className="px-5 py-2 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-slate-200 font-bold"
           >
-            <i className="fas fa-file-excel"></i> 
-            <span className="hidden sm:inline">Export Excel</span>
+            <i className="fas fa-file-pdf"></i> 
+            <span className="hidden sm:inline">Export PDF</span>
           </button>
         </div>
       </div>
+
+      {showExportModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-[2rem] p-8 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
+            <h3 className="text-2xl font-bold text-slate-900 mb-6">Export Monthly Report</h3>
+            <div className="space-y-5">
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Select Month</label>
+                <input 
+                  type="month" 
+                  value={exportSettings.month}
+                  onChange={e => setExportSettings({...exportSettings, month: e.target.value})}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Ministry Category</label>
+                <select 
+                  value={exportSettings.category}
+                  onChange={e => setExportSettings({...exportSettings, category: e.target.value as MemberCategory})}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition"
+                >
+                  {CATEGORIES.map((cat: MemberCategory) => <option key={cat} value={cat}>{cat}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Service Group</label>
+                <select 
+                  value={exportSettings.serviceGroup}
+                  onChange={e => setExportSettings({...exportSettings, serviceGroup: e.target.value as ServiceGroup})}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition"
+                >
+                  {SERVICE_GROUPS.map((group: ServiceGroup) => <option key={group} value={group}>{group}</option>)}
+                </select>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowExportModal(false)}
+                  className="flex-1 px-6 py-3 border border-slate-200 text-slate-600 rounded-2xl font-bold hover:bg-slate-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportPDF}
+                  className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition"
+                >
+                  Generate PDF
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="overflow-x-auto">

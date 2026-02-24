@@ -13,6 +13,7 @@ type View = 'dashboard' | 'members' | 'scan' | 'log' | 'account';
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [userRole, setUserRole] = useState<'admin' | 'scanner' | null>(null);
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [scanStatus, setScanStatus] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -32,7 +33,9 @@ const App: React.FC = () => {
     const init = async () => {
       // Check initial authentication state from storage
       const auth = storageService.isAuthenticated();
+      const role = storageService.getUserRole();
       setIsAuthenticated(auth);
+      setUserRole(role);
       
       if (auth) {
         await refreshData();
@@ -44,6 +47,7 @@ const App: React.FC = () => {
 
   const handleLogin = async () => {
     setIsAuthenticated(true);
+    setUserRole(storageService.getUserRole());
     setCurrentView('dashboard');
     await refreshData();
   };
@@ -51,6 +55,7 @@ const App: React.FC = () => {
   const handleLogout = () => {
     storageService.setSession(false);
     setIsAuthenticated(false);
+    setUserRole(null);
     setCurrentView('dashboard');
     setMembers([]);
     setAttendance([]);
@@ -92,16 +97,16 @@ const App: React.FC = () => {
             </div>
             <div className="hidden sm:block">
               <h1 className="text-xl font-bold text-slate-900 tracking-tight">GraceAttend</h1>
-              <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest leading-none">Church Management System</p>
+              <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest leading-none">Church Attendance System</p>
             </div>
           </div>
           
           <nav className="hidden md:flex items-center gap-6">
-            {(['dashboard', 'members', 'scan', 'log'] as View[]).map((view) => (
+            {(userRole === 'admin' ? ['dashboard', 'members', 'scan', 'log'] : ['dashboard', 'scan']).map((view) => (
               <button
                 key={view}
                 type="button"
-                onClick={() => setCurrentView(view)}
+                onClick={() => setCurrentView(view as View)}
                 className={`text-sm font-semibold transition-colors capitalize ${
                   currentView === view ? 'text-indigo-600' : 'text-slate-500 hover:text-indigo-500'
                 }`}
@@ -136,9 +141,9 @@ const App: React.FC = () => {
 
       <main className="flex-1 max-w-7xl mx-auto w-full p-4 md:p-8">
         {currentView === 'dashboard' && <Dashboard members={members} attendance={attendance} />}
-        {currentView === 'members' && <MemberManagement members={members} onUpdate={refreshData} />}
-        {currentView === 'log' && <AttendanceLog members={members} attendance={attendance} onUpdate={refreshData} />}
-        {currentView === 'account' && <AccountSettings onLogout={handleLogout} onUpdate={refreshData} />}
+        {currentView === 'members' && userRole === 'admin' && <MemberManagement members={members} onUpdate={refreshData} />}
+        {currentView === 'log' && userRole === 'admin' && <AttendanceLog members={members} attendance={attendance} onUpdate={refreshData} />}
+        {currentView === 'account' && <AccountSettings onLogout={handleLogout} onUpdate={refreshData} userRole={userRole} />}
         {currentView === 'scan' && (
           <div className="flex flex-col items-center">
             <h2 className="text-2xl font-bold mb-8 text-center text-slate-800">Scan Member ID</h2>
@@ -166,17 +171,21 @@ const App: React.FC = () => {
           <i className="fas fa-th-large text-lg"></i>
           <span className="text-[10px] font-bold uppercase mt-1">Home</span>
         </button>
-        <button type="button" onClick={() => setCurrentView('members')} className={`flex flex-col items-center ${currentView === 'members' ? 'text-indigo-600' : 'text-slate-400'}`}>
-          <i className="fas fa-users text-lg"></i>
-          <span className="text-[10px] font-bold uppercase mt-1">Folks</span>
-        </button>
+        {userRole === 'admin' && (
+          <button type="button" onClick={() => setCurrentView('members')} className={`flex flex-col items-center ${currentView === 'members' ? 'text-indigo-600' : 'text-slate-400'}`}>
+            <i className="fas fa-users text-lg"></i>
+            <span className="text-[10px] font-bold uppercase mt-1">Folks</span>
+          </button>
+        )}
         <button type="button" onClick={() => setCurrentView('scan')} className={`relative flex items-center justify-center w-12 h-12 -mt-10 rounded-full bg-indigo-600 text-white shadow-lg shadow-indigo-200 ring-4 ring-slate-50 ${currentView === 'scan' ? 'bg-indigo-700' : ''}`}>
           <i className="fas fa-barcode text-xl"></i>
         </button>
-        <button type="button" onClick={() => setCurrentView('log')} className={`flex flex-col items-center ${currentView === 'log' ? 'text-indigo-600' : 'text-slate-400'}`}>
-          <i className="fas fa-calendar-check text-lg"></i>
-          <span className="text-[10px] font-bold uppercase mt-1">Logs</span>
-        </button>
+        {userRole === 'admin' && (
+          <button type="button" onClick={() => setCurrentView('log')} className={`flex flex-col items-center ${currentView === 'log' ? 'text-indigo-600' : 'text-slate-400'}`}>
+            <i className="fas fa-calendar-check text-lg"></i>
+            <span className="text-[10px] font-bold uppercase mt-1">Logs</span>
+          </button>
+        )}
         <button type="button" onClick={() => setCurrentView('account')} className={`flex flex-col items-center ${currentView === 'account' ? 'text-indigo-600' : 'text-slate-400'}`}>
           <i className="fas fa-user-circle text-lg"></i>
           <span className="text-[10px] font-bold uppercase mt-1">Profile</span>

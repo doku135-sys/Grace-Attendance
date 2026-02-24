@@ -3,15 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { storageService } from '../services/storageService';
 import { Member, MemberCategory, ServiceGroup } from '../types';
-
-const CATEGORIES: MemberCategory[] = [
-  'Praise and Worship',
-  'Multimedia',
-  'Service Management',
-  'Usher'
-];
-
-const SERVICE_GROUPS: ServiceGroup[] = ['KC 1', 'KC 2', 'KC 3'];
+import { CATEGORIES, SERVICE_GROUPS } from '../constants';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -290,7 +282,7 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ members, onUpdate }
                     onChange={e => setFormData({...formData, category: e.target.value as MemberCategory})}
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition"
                   >
-                    {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                    {CATEGORIES.map((cat: MemberCategory) => <option key={cat} value={cat}>{cat}</option>)}
                   </select>
                 </div>
                 <div>
@@ -300,13 +292,12 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ members, onUpdate }
                     onChange={e => setFormData({...formData, serviceGroup: e.target.value as ServiceGroup})}
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition"
                   >
-                    {SERVICE_GROUPS.map(group => <option key={group} value={group}>{group}</option>)}
+                    {SERVICE_GROUPS.map((group: ServiceGroup) => <option key={group} value={group}>{group}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Phone Number</label>
                   <input
-                    required
                     type="tel"
                     value={formData.phone}
                     placeholder="080 0000 0000"
@@ -317,7 +308,6 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ members, onUpdate }
                 <div className="md:col-span-2">
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Email Address</label>
                   <input
-                    required
                     type="email"
                     value={formData.email}
                     placeholder="member@example.com"

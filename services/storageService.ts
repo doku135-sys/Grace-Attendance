@@ -5,25 +5,47 @@ import { supabase } from './supabaseClient';
 const MEMBERS_KEY = 'church_members';
 const ATTENDANCE_KEY = 'church_attendance';
 const ADMIN_KEY = 'church_admin_creds';
+const SCANNER_KEY = 'church_scanner_creds';
 const SESSION_KEY = 'church_admin_session';
+const ROLE_KEY = 'church_user_role';
 
 export const storageService = {
   // Authentication
   getAdminCreds: (): AdminUser => {
     const data = localStorage.getItem(ADMIN_KEY);
     if (!data) {
-      const defaultAdmin = { username: 'admin', password: 'admin' };
+      const defaultAdmin: AdminUser = { username: 'admin', password: 'admin', role: 'admin' };
       localStorage.setItem(ADMIN_KEY, JSON.stringify(defaultAdmin));
       return defaultAdmin;
     }
     try {
       const creds = JSON.parse(data);
       creds.username = 'admin';
+      creds.role = 'admin';
       return creds;
     } catch (e) {
-      const defaultAdmin = { username: 'admin', password: 'admin' };
+      const defaultAdmin: AdminUser = { username: 'admin', password: 'admin', role: 'admin' };
       localStorage.setItem(ADMIN_KEY, JSON.stringify(defaultAdmin));
       return defaultAdmin;
+    }
+  },
+
+  getScannerCreds: (): AdminUser => {
+    const data = localStorage.getItem(SCANNER_KEY);
+    if (!data) {
+      const defaultScanner: AdminUser = { username: 'scanner', password: 'scanner', role: 'scanner' };
+      localStorage.setItem(SCANNER_KEY, JSON.stringify(defaultScanner));
+      return defaultScanner;
+    }
+    try {
+      const creds = JSON.parse(data);
+      creds.username = 'scanner';
+      creds.role = 'scanner';
+      return creds;
+    } catch (e) {
+      const defaultScanner: AdminUser = { username: 'scanner', password: 'scanner', role: 'scanner' };
+      localStorage.setItem(SCANNER_KEY, JSON.stringify(defaultScanner));
+      return defaultScanner;
     }
   },
 
@@ -33,16 +55,28 @@ export const storageService = {
     localStorage.setItem(ADMIN_KEY, JSON.stringify(creds));
   },
 
-  setSession: (isAuthenticated: boolean) => {
-    if (isAuthenticated) {
+  updateScannerPassword: (newPassword: string) => {
+    const creds = storageService.getScannerCreds();
+    creds.password = newPassword;
+    localStorage.setItem(SCANNER_KEY, JSON.stringify(creds));
+  },
+
+  setSession: (isAuthenticated: boolean, role?: 'admin' | 'scanner') => {
+    if (isAuthenticated && role) {
       localStorage.setItem(SESSION_KEY, 'true');
+      localStorage.setItem(ROLE_KEY, role);
     } else {
       localStorage.removeItem(SESSION_KEY);
+      localStorage.removeItem(ROLE_KEY);
     }
   },
 
   isAuthenticated: (): boolean => {
     return localStorage.getItem(SESSION_KEY) === 'true';
+  },
+
+  getUserRole: (): 'admin' | 'scanner' | null => {
+    return localStorage.getItem(ROLE_KEY) as 'admin' | 'scanner' | null;
   },
 
   // Members
@@ -113,7 +147,12 @@ export const storageService = {
 
   recordAttendance: async (memberId: string) => {
     const now = new Date();
-    const date = now.toISOString().split('T')[0];
+    // Use local date string YYYY-MM-DD
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const date = `${year}-${month}-${day}`;
+    
     const records = storageService.getAttendance();
     
     const alreadyPresent = records.some(r => r.memberId === memberId && r.date === date);

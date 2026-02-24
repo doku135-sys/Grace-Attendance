@@ -29,8 +29,11 @@ export interface AIInsight {
   growthTrend: string;
 }
 
+export type UserRole = 'admin' | 'scanner';
+
 export interface AdminUser {
   username: string;
   password: string;
+  role: UserRole;
   lastLogin?: string;
 }

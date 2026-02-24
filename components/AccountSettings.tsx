@@ -5,11 +5,14 @@ import { storageService } from '../services/storageService';
 interface AccountSettingsProps {
   onLogout?: () => void;
   onUpdate: () => Promise<void>;
+  userRole: 'admin' | 'scanner' | null;
 }
 
-const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout, onUpdate }) => {
+const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout, onUpdate, userRole }) => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [newScannerPassword, setNewScannerPassword] = useState('');
+  const [confirmScannerPassword, setConfirmScannerPassword] = useState('');
   const [message, setMessage] = useState({ type: '', text: '' });
 
   const showMsg = (type: 'success' | 'error', text: string) => {
@@ -31,6 +34,22 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout, onUpdate })
     showMsg('success', 'Admin password updated successfully!');
     setNewPassword('');
     setConfirmPassword('');
+  };
+
+  const handleUpdateScannerPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newScannerPassword !== confirmScannerPassword) {
+      showMsg('error', 'Scanner passwords do not match.');
+      return;
+    }
+    if (newScannerPassword.length < 4) {
+      showMsg('error', 'Scanner password must be at least 4 characters.');
+      return;
+    }
+    storageService.updateScannerPassword(newScannerPassword);
+    showMsg('success', 'Scanner password updated successfully!');
+    setNewScannerPassword('');
+    setConfirmScannerPassword('');
   };
 
   const handleExportFile = () => {
@@ -105,74 +124,91 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout, onUpdate })
       </div>
 
       <div className="space-y-6">
-        {/* UNIFIED FILE BACKUP SECTION */}
-        <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 relative overflow-hidden group">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center shadow-sm">
-              <i className="fas fa-database"></i>
-            </div>
-            <h3 className="text-lg font-bold text-slate-800">Unified Data Backup</h3>
-          </div>
-          <p className="text-slate-500 text-sm mb-6 leading-relaxed">
-            Download a single <code>.json</code> file containing <strong>all members</strong> and <strong>all attendance records</strong>.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <button
-              type="button"
-              onClick={handleExportFile}
-              className="flex-1 px-6 py-4 bg-slate-900 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition shadow-lg shadow-slate-100"
-            >
-              <i className="fas fa-download"></i>
-              Download Full Backup
-            </button>
-            <label className="flex-1 px-6 py-4 border-2 border-slate-900 text-slate-900 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition cursor-pointer text-center">
-              <i className="fas fa-upload"></i>
-              Restore Full Data
-              <input 
-                type="file" 
-                accept="application/json,.json,text/plain,.church" 
-                onChange={handleImportFile} 
-                className="hidden" 
-              />
-            </label>
-          </div>
-        </div>
-
         {/* ADMIN PASSWORD SECTION */}
-        <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100">
-          <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
-              <i className="fas fa-lock"></i>
+        {userRole === 'admin' && (
+          <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100">
+            <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-3">
+              <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
+                <i className="fas fa-lock"></i>
+              </div>
+              Update Admin Password
+            </h3>
+            <form onSubmit={handleUpdatePassword} className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input
+                  required
+                  type="password"
+                  value={newPassword}
+                  placeholder="New Password"
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition"
+                />
+                <input
+                  required
+                  type="password"
+                  value={confirmPassword}
+                  placeholder="Confirm Password"
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition"
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full sm:w-auto px-10 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-50"
+              >
+                Update Password
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* SCANNER PASSWORD SECTION */}
+        {userRole === 'admin' && (
+          <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100">
+            <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-3">
+              <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
+                <i className="fas fa-barcode"></i>
+              </div>
+              Update Scanner Password
+            </h3>
+            <form onSubmit={handleUpdateScannerPassword} className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input
+                  required
+                  type="password"
+                  value={newScannerPassword}
+                  placeholder="New Scanner Password"
+                  onChange={(e) => setNewScannerPassword(e.target.value)}
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-amber-500 outline-none transition"
+                />
+                <input
+                  required
+                  type="password"
+                  value={confirmScannerPassword}
+                  placeholder="Confirm Scanner Password"
+                  onChange={(e) => setConfirmScannerPassword(e.target.value)}
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-amber-500 outline-none transition"
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full sm:w-auto px-10 py-4 bg-amber-600 text-white rounded-2xl font-bold hover:bg-amber-700 transition shadow-lg shadow-amber-50"
+              >
+                Update Scanner Password
+              </button>
+            </form>
+          </div>
+        )}
+
+        {userRole === 'scanner' && (
+          <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 text-center">
+            <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <i className="fas fa-shield-alt text-2xl"></i>
             </div>
-            Update Admin Password
-          </h3>
-          <form onSubmit={handleUpdatePassword} className="space-y-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <input
-                required
-                type="password"
-                value={newPassword}
-                placeholder="New Password"
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition"
-              />
-              <input
-                required
-                type="password"
-                value={confirmPassword}
-                placeholder="Confirm Password"
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition"
-              />
-            </div>
-            <button
-              type="submit"
-              className="w-full sm:w-auto px-10 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-50"
-            >
-              Update Password
-            </button>
-          </form>
-        </div>
+            <h3 className="text-xl font-bold text-slate-800 mb-2">Scanner Account</h3>
+            <p className="text-slate-500 text-sm">You are logged in as a scanner. You have view-only access to the dashboard and full access to the scanner menu.</p>
+          </div>
+        )}
 
         {message.text && (
           <div className={`p-5 rounded-2xl text-sm font-bold flex items-center gap-3 border animate-in slide-in-from-top-2 ${
@@ -189,7 +225,7 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout, onUpdate })
             onClick={onLogout}
             className="w-full py-5 bg-white border-2 border-red-100 text-red-500 rounded-[2.5rem] font-black text-xs uppercase tracking-widest hover:bg-red-50 transition flex items-center justify-center gap-3 shadow-sm"
           >
-            <i className="fas fa-power-off"></i> Logout Admin
+            <i className="fas fa-power-off"></i> Logout {userRole === 'scanner' ? 'Scanner' : 'Admin'}
           </button>
         </div>
       </div>
