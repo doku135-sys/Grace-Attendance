@@ -1,6 +1,8 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 
+declare const Html5Qrcode: any;
+
 interface ScannerProps {
   onScan: (decodedText: string) => void;
   statusMessage?: string;
@@ -13,7 +15,6 @@ const Scanner: React.FC<ScannerProps> = ({ onScan, statusMessage }) => {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    // @ts-ignore
     const html5QrCode = new Html5Qrcode("reader");
     scannerRef.current = html5QrCode;
 
