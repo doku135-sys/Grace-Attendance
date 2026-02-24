@@ -136,7 +136,10 @@ export const storageService = {
     localStorage.setItem(MEMBERS_KEY, JSON.stringify(updated));
     
     const { error } = await supabase.from('members').insert([member]);
-    if (error) console.error('Error saving member to Supabase:', error);
+    if (error) {
+      console.error('CRITICAL: Failed to save member to Supabase.', error);
+      alert(`Database Error: ${error.message}. Please check if the 'members' table has 'serviceGroup' and 'joinedDate' columns.`);
+    }
   },
 
   updateMember: async (member: Member) => {
@@ -145,7 +148,10 @@ export const storageService = {
     localStorage.setItem(MEMBERS_KEY, JSON.stringify(updated));
 
     const { error } = await supabase.from('members').update(member).eq('id', member.id);
-    if (error) console.error('Error updating member in Supabase:', error);
+    if (error) {
+      console.error('CRITICAL: Failed to update member in Supabase.', error);
+      alert(`Database Error: ${error.message}`);
+    }
   },
 
   deleteMember: async (id: string): Promise<Member[]> => {
