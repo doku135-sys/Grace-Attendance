@@ -15,8 +15,12 @@ const SERVICE_GROUPS: ServiceGroup[] = ['KC 1', 'KC 2', 'KC 3'];
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-const MemberManagement: React.FC = () => {
-  const [members, setMembers] = useState<Member[]>(storageService.getMembers());
+interface MemberManagementProps {
+  members: Member[];
+  onUpdate: () => Promise<void>;
+}
+
+const MemberManagement: React.FC<MemberManagementProps> = ({ members, onUpdate }) => {
   const [showModal, setShowModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState<Member | null>(null);
   const [showStatsModal, setShowStatsModal] = useState<Member | null>(null);
@@ -48,36 +52,32 @@ const MemberManagement: React.FC = () => {
     setShowModal(true);
   };
 
-  const handleSaveMember = (e: React.FormEvent) => {
+  const handleSaveMember = async (e: React.FormEvent) => {
     e.preventDefault();
-    const currentMembers = storageService.getMembers();
     
     if (editingMember) {
-      const updated = currentMembers.map(m => 
-        m.id === editingMember.id ? { ...m, ...formData } : m
-      );
-      storageService.updateMembers(updated);
-      setMembers([...updated]);
+      const updatedMember = { ...editingMember, ...formData };
+      await storageService.updateMember(updatedMember);
     } else {
       const newMember: Member = {
         id: `CH-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
         ...formData,
         joinedDate: new Date().toISOString().split('T')[0],
       };
-      storageService.saveMember(newMember);
-      setMembers([...currentMembers, newMember]);
+      await storageService.saveMember(newMember);
     }
     
+    await onUpdate();
     setShowModal(false);
   };
 
-  const handleDeleteMember = (e: React.MouseEvent, id: string) => {
+  const handleDeleteMember = async (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     e.stopPropagation();
     
     if (window.confirm('Are you sure you want to delete this member? This will also remove their attendance history.')) {
-      const updatedMembers = storageService.deleteMember(id);
-      setMembers([...updatedMembers]);
+      await storageService.deleteMember(id);
+      await onUpdate();
     }
   };
 

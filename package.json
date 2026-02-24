@@ -1,4 +1,3 @@
-
 {
   "name": "grace-attend",
   "private": true,
@@ -11,6 +10,7 @@
   },
   "dependencies": {
     "@google/genai": "^1.41.0",
+    "@supabase/supabase-js": "^2.97.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "recharts": "^3.7.0"

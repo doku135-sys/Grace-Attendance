@@ -1,11 +1,15 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { storageService } from '../services/storageService';
-import { MemberCategory, AttendanceRecord, ServiceGroup } from '../types';
+import { MemberCategory, AttendanceRecord, ServiceGroup, Member } from '../types';
 
-const AttendanceLog: React.FC = () => {
-  const members = storageService.getMembers();
-  const [attendance, setAttendance] = useState<AttendanceRecord[]>(storageService.getAttendance());
+interface AttendanceLogProps {
+  members: Member[];
+  attendance: AttendanceRecord[];
+  onUpdate: () => Promise<void>;
+}
+
+const AttendanceLog: React.FC<AttendanceLogProps> = ({ members, attendance, onUpdate }) => {
   const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
 
   const filteredData = useMemo(() => {
@@ -25,14 +29,14 @@ const AttendanceLog: React.FC = () => {
       .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
   }, [attendance, members, filterMonth]);
 
-  const handleDeleteRecord = (memberId: string, timestamp: string) => {
+  const handleDeleteRecord = async (memberId: string, timestamp: string) => {
     const member = members.find(m => m.id === memberId);
     const timeStr = new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const dateStr = new Date(timestamp).toLocaleDateString();
     
     if (window.confirm(`Delete attendance record for ${member?.name || 'this member'} on ${dateStr} at ${timeStr}?`)) {
-      const updated = storageService.deleteAttendanceRecord(memberId, timestamp);
-      setAttendance([...updated]);
+      await storageService.deleteAttendanceRecord(memberId, timestamp);
+      await onUpdate();
     }
   };
 

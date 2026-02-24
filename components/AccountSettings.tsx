@@ -4,9 +4,10 @@ import { storageService } from '../services/storageService';
 
 interface AccountSettingsProps {
   onLogout?: () => void;
+  onUpdate: () => Promise<void>;
 }
 
-const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout }) => {
+const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout, onUpdate }) => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -56,7 +57,7 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout }) => {
       showMsg('error', 'Failed to read file on this device.');
     };
     
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const content = event.target?.result as string;
         if (!content) throw new Error("File is empty");
@@ -71,7 +72,7 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout }) => {
           const confirmText = `Found ${memberCount} members and ${attendanceCount} attendance logs. This will REPLACE all current data on this device. Continue?`;
           
           if (window.confirm(confirmText)) {
-            storageService.importFullState(data);
+            await storageService.importFullState(data);
             showMsg('success', 'System restored successfully! Refreshing...');
             setTimeout(() => window.location.reload(), 1500);
           }

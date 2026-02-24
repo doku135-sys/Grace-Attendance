@@ -7,6 +7,7 @@ import Scanner from './components/Scanner';
 import Login from './components/Login';
 import AccountSettings from './components/AccountSettings';
 import { storageService } from './services/storageService';
+import { Member, AttendanceRecord } from './types';
 
 type View = 'dashboard' | 'members' | 'scan' | 'log' | 'account';
 
@@ -15,37 +16,54 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [scanStatus, setScanStatus] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
+
+  const refreshData = async () => {
+    const [m, a] = await Promise.all([
+      storageService.fetchMembers(),
+      storageService.fetchAttendance()
+    ]);
+    setMembers(m);
+    setAttendance(a);
+  };
 
   useEffect(() => {
-    // Check initial authentication state from storage
-    const auth = storageService.isAuthenticated();
-    setIsAuthenticated(auth);
-    setLoading(false);
+    const init = async () => {
+      // Check initial authentication state from storage
+      const auth = storageService.isAuthenticated();
+      setIsAuthenticated(auth);
+      
+      if (auth) {
+        await refreshData();
+      }
+      setLoading(false);
+    };
+    init();
   }, []);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setIsAuthenticated(true);
     setCurrentView('dashboard');
+    await refreshData();
   };
 
   const handleLogout = () => {
-    // Clear storage session first
     storageService.setSession(false);
-    // Update React state to trigger a re-render
-    // This will cause the component to show the Login screen instantly
     setIsAuthenticated(false);
-    // Reset view for next time the user logs in
     setCurrentView('dashboard');
+    setMembers([]);
+    setAttendance([]);
   };
 
-  const handleScan = (id: string) => {
-    const members = storageService.getMembers();
+  const handleScan = async (id: string) => {
     const member = members.find(m => m.id === id);
 
     if (member) {
-      const success = storageService.recordAttendance(id);
+      const success = await storageService.recordAttendance(id);
       if (success) {
         setScanStatus(`Welcome, ${member.name}! Checked in.`);
+        await refreshData(); // Refresh to show new attendance
       } else {
         setScanStatus(`${member.name} is already checked in for today.`);
       }
@@ -117,10 +135,10 @@ const App: React.FC = () => {
       </header>
 
       <main className="flex-1 max-w-7xl mx-auto w-full p-4 md:p-8">
-        {currentView === 'dashboard' && <Dashboard />}
-        {currentView === 'members' && <MemberManagement />}
-        {currentView === 'log' && <AttendanceLog />}
-        {currentView === 'account' && <AccountSettings onLogout={handleLogout} />}
+        {currentView === 'dashboard' && <Dashboard members={members} attendance={attendance} />}
+        {currentView === 'members' && <MemberManagement members={members} onUpdate={refreshData} />}
+        {currentView === 'log' && <AttendanceLog members={members} attendance={attendance} onUpdate={refreshData} />}
+        {currentView === 'account' && <AccountSettings onLogout={handleLogout} onUpdate={refreshData} />}
         {currentView === 'scan' && (
           <div className="flex flex-col items-center">
             <h2 className="text-2xl font-bold mb-8 text-center text-slate-800">Scan Member ID</h2>

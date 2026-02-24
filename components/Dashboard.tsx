@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { storageService } from '../services/storageService';
-import { MemberCategory, ServiceGroup } from '../types';
+import { MemberCategory, ServiceGroup, Member, AttendanceRecord } from '../types';
 
 const CATEGORIES: MemberCategory[] = [
   'Praise and Worship',
@@ -13,9 +13,12 @@ const CATEGORIES: MemberCategory[] = [
 
 const SERVICE_GROUPS: ServiceGroup[] = ['KC 1', 'KC 2', 'KC 3'];
 
-const Dashboard: React.FC = () => {
-  const members = storageService.getMembers();
-  const attendance = storageService.getAttendance();
+interface DashboardProps {
+  members: Member[];
+  attendance: AttendanceRecord[];
+}
+
+const Dashboard: React.FC<DashboardProps> = ({ members, attendance }) => {
   const [selectedCategory, setSelectedCategory] = useState<MemberCategory | 'All'>('All');
   const [selectedGroup, setSelectedGroup] = useState<ServiceGroup | 'All'>('All');
 

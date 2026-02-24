@@ -1,11 +1,11 @@
 
 import { Member, AttendanceRecord, AdminUser } from '../types';
+import { supabase } from './supabaseClient';
 
 const MEMBERS_KEY = 'church_members';
 const ATTENDANCE_KEY = 'church_attendance';
 const ADMIN_KEY = 'church_admin_creds';
 const SESSION_KEY = 'church_admin_session';
-const SYNC_KEY = 'church_sync_id';
 
 export const storageService = {
   // Authentication
@@ -51,16 +51,35 @@ export const storageService = {
     return data ? JSON.parse(data) : [];
   },
 
-  saveMember: (member: Member) => {
+  fetchMembers: async (): Promise<Member[]> => {
+    const { data, error } = await supabase.from('members').select('*');
+    if (error) {
+      console.error('Error fetching members:', error);
+      return storageService.getMembers();
+    }
+    localStorage.setItem(MEMBERS_KEY, JSON.stringify(data));
+    return data as Member[];
+  },
+
+  saveMember: async (member: Member) => {
     const members = storageService.getMembers();
-    localStorage.setItem(MEMBERS_KEY, JSON.stringify([...members, member]));
+    const updated = [...members, member];
+    localStorage.setItem(MEMBERS_KEY, JSON.stringify(updated));
+    
+    const { error } = await supabase.from('members').insert([member]);
+    if (error) console.error('Error saving member to Supabase:', error);
   },
 
-  updateMembers: (members: Member[]) => {
-    localStorage.setItem(MEMBERS_KEY, JSON.stringify(members));
+  updateMember: async (member: Member) => {
+    const members = storageService.getMembers();
+    const updated = members.map(m => m.id === member.id ? member : m);
+    localStorage.setItem(MEMBERS_KEY, JSON.stringify(updated));
+
+    const { error } = await supabase.from('members').update(member).eq('id', member.id);
+    if (error) console.error('Error updating member in Supabase:', error);
   },
 
-  deleteMember: (id: string): Member[] => {
+  deleteMember: async (id: string): Promise<Member[]> => {
     const members = storageService.getMembers();
     const updatedMembers = members.filter(m => m.id !== id);
     localStorage.setItem(MEMBERS_KEY, JSON.stringify(updatedMembers));
@@ -68,6 +87,10 @@ export const storageService = {
     const attendance = storageService.getAttendance();
     const updatedAttendance = attendance.filter(r => r.memberId !== id);
     localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(updatedAttendance));
+
+    // Supabase deletions
+    await supabase.from('attendance').delete().eq('memberId', id);
+    await supabase.from('members').delete().eq('id', id);
     
     return updatedMembers;
   },
@@ -78,7 +101,17 @@ export const storageService = {
     return data ? JSON.parse(data) : [];
   },
 
-  recordAttendance: (memberId: string) => {
+  fetchAttendance: async (): Promise<AttendanceRecord[]> => {
+    const { data, error } = await supabase.from('attendance').select('*');
+    if (error) {
+      console.error('Error fetching attendance:', error);
+      return storageService.getAttendance();
+    }
+    localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(data));
+    return data as AttendanceRecord[];
+  },
+
+  recordAttendance: async (memberId: string) => {
     const now = new Date();
     const date = now.toISOString().split('T')[0];
     const records = storageService.getAttendance();
@@ -91,21 +124,27 @@ export const storageService = {
       date,
       timestamp: now.toISOString(),
     };
+    
     localStorage.setItem(ATTENDANCE_KEY, JSON.stringify([...records, newRecord]));
+    
+    const { error } = await supabase.from('attendance').insert([newRecord]);
+    if (error) console.error('Error recording attendance to Supabase:', error);
+    
     return true;
   },
 
-  deleteAttendanceRecord: (memberId: string, timestamp: string): AttendanceRecord[] => {
+  deleteAttendanceRecord: async (memberId: string, timestamp: string): Promise<AttendanceRecord[]> => {
     const records = storageService.getAttendance();
     const updatedRecords = records.filter(r => !(r.memberId === memberId && r.timestamp === timestamp));
     localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(updatedRecords));
+
+    const { error } = await supabase.from('attendance').delete().match({ memberId, timestamp });
+    if (error) console.error('Error deleting attendance from Supabase:', error);
+
     return updatedRecords;
   },
 
   // Sync Helpers
-  getSyncId: () => localStorage.getItem(SYNC_KEY) || '',
-  setSyncId: (id: string) => localStorage.setItem(SYNC_KEY, id),
-  
   exportFullState: () => {
     return {
       members: storageService.getMembers(),
@@ -113,13 +152,20 @@ export const storageService = {
     };
   },
 
-  importFullState: (data: { members: Member[], attendance: AttendanceRecord[] }) => {
-    if (data.members) localStorage.setItem(MEMBERS_KEY, JSON.stringify(data.members));
-    if (data.attendance) localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(data.attendance));
+  importFullState: async (data: { members: Member[], attendance: AttendanceRecord[] }) => {
+    if (data.members) {
+      localStorage.setItem(MEMBERS_KEY, JSON.stringify(data.members));
+      await supabase.from('members').upsert(data.members);
+    }
+    if (data.attendance) {
+      localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(data.attendance));
+      await supabase.from('attendance').upsert(data.attendance);
+    }
   },
 
-  clearAllData: () => {
+  clearAllData: async () => {
     localStorage.removeItem(MEMBERS_KEY);
     localStorage.removeItem(ATTENDANCE_KEY);
+    // We don't clear Supabase by default for safety, but we could
   }
 };
