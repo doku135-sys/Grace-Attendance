@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { storageService } from '../services/storageService';
-import { Member, MemberCategory } from '../types';
+import { Member, MemberCategory, ServiceGroup } from '../types';
 
 const CATEGORIES: MemberCategory[] = [
   'Praise and Worship',
@@ -10,6 +10,8 @@ const CATEGORIES: MemberCategory[] = [
   'Service Management',
   'Usher'
 ];
+
+const SERVICE_GROUPS: ServiceGroup[] = ['KC 1', 'KC 2', 'KC 3'];
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -23,8 +25,8 @@ const MemberManagement: React.FC = () => {
     name: '',
     phone: '',
     email: '',
-    birthday: '',
     category: 'Praise and Worship' as MemberCategory,
+    serviceGroup: 'KC 1' as ServiceGroup,
   });
 
   const attendance = storageService.getAttendance();
@@ -36,12 +38,12 @@ const MemberManagement: React.FC = () => {
         name: member.name,
         phone: member.phone,
         email: member.email,
-        birthday: member.birthday || '',
         category: member.category,
+        serviceGroup: member.serviceGroup || 'KC 1',
       });
     } else {
       setEditingMember(null);
-      setFormData({ name: '', phone: '', email: '', birthday: '', category: 'Praise and Worship' });
+      setFormData({ name: '', phone: '', email: '', category: 'Praise and Worship', serviceGroup: 'KC 1' });
     }
     setShowModal(true);
   };
@@ -134,7 +136,7 @@ const MemberManagement: React.FC = () => {
               <tr>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Member</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Category</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Birthday</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Service Group</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Contact</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Actions</th>
               </tr>
@@ -157,8 +159,10 @@ const MemberManagement: React.FC = () => {
                       {member.category}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-slate-600">
-                    {member.birthday ? new Date(member.birthday).toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : '-'}
+                  <td className="px-6 py-4">
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-600 border border-indigo-100 whitespace-nowrap">
+                      {member.serviceGroup}
+                    </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-500">
                     <div className="flex items-center gap-2"><i className="fas fa-phone text-[10px]"></i> {member.phone}</div>
@@ -290,13 +294,14 @@ const MemberManagement: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Birthday</label>
-                  <input
-                    type="date"
-                    value={formData.birthday}
-                    onChange={e => setFormData({...formData, birthday: e.target.value})}
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Service Group</label>
+                  <select
+                    value={formData.serviceGroup}
+                    onChange={e => setFormData({...formData, serviceGroup: e.target.value as ServiceGroup})}
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition"
-                  />
+                  >
+                    {SERVICE_GROUPS.map(group => <option key={group} value={group}>{group}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Phone Number</label>

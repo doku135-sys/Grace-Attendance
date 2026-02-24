@@ -1,5 +1,6 @@
 
 export type MemberCategory = 'Praise and Worship' | 'Multimedia' | 'Service Management' | 'Usher';
+export type ServiceGroup = 'KC 1' | 'KC 2' | 'KC 3';
 
 export interface Member {
   id: string;
@@ -7,7 +8,7 @@ export interface Member {
   phone: string;
   email: string;
   category: MemberCategory;
-  birthday: string;
+  serviceGroup: ServiceGroup;
   joinedDate: string;
 }
 

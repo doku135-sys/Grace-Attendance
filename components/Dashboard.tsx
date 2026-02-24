@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { storageService } from '../services/storageService';
-import { MemberCategory } from '../types';
+import { MemberCategory, ServiceGroup } from '../types';
 
 const CATEGORIES: MemberCategory[] = [
   'Praise and Worship',
@@ -11,21 +11,30 @@ const CATEGORIES: MemberCategory[] = [
   'Usher'
 ];
 
+const SERVICE_GROUPS: ServiceGroup[] = ['KC 1', 'KC 2', 'KC 3'];
+
 const Dashboard: React.FC = () => {
   const members = storageService.getMembers();
   const attendance = storageService.getAttendance();
   const [selectedCategory, setSelectedCategory] = useState<MemberCategory | 'All'>('All');
+  const [selectedGroup, setSelectedGroup] = useState<ServiceGroup | 'All'>('All');
 
   const filteredMembers = useMemo(() => {
-    if (selectedCategory === 'All') return members;
-    return members.filter(m => m.category === selectedCategory);
-  }, [members, selectedCategory]);
+    let filtered = members;
+    if (selectedCategory !== 'All') {
+      filtered = filtered.filter(m => m.category === selectedCategory);
+    }
+    if (selectedGroup !== 'All') {
+      filtered = filtered.filter(m => m.serviceGroup === selectedGroup);
+    }
+    return filtered;
+  }, [members, selectedCategory, selectedGroup]);
 
   const filteredAttendance = useMemo(() => {
-    if (selectedCategory === 'All') return attendance;
+    if (selectedCategory === 'All' && selectedGroup === 'All') return attendance;
     const categoryMemberIds = new Set(filteredMembers.map(m => m.id));
     return attendance.filter(record => categoryMemberIds.has(record.memberId));
-  }, [attendance, filteredMembers, selectedCategory]);
+  }, [attendance, filteredMembers, selectedCategory, selectedGroup]);
 
   const weeklyData = useMemo(() => {
     const now = new Date();
@@ -82,16 +91,29 @@ const Dashboard: React.FC = () => {
           <h2 className="text-xl font-bold text-slate-800">Attendance Dashboard</h2>
           <p className="text-sm text-slate-500">Monitor engagement across ministries</p>
         </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <label className="text-xs font-bold text-slate-400 uppercase tracking-widest hidden lg:block">Filter Ministry:</label>
-          <select 
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value as any)}
-            className="flex-1 sm:flex-none px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm text-slate-700"
-          >
-            <option value="All">All Ministries</option>
-            {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-          </select>
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest hidden lg:block">Ministry:</label>
+            <select 
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value as any)}
+              className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm text-slate-700"
+            >
+              <option value="All">All Ministries</option>
+              {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest hidden lg:block">Group:</label>
+            <select 
+              value={selectedGroup}
+              onChange={(e) => setSelectedGroup(e.target.value as any)}
+              className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm text-slate-700"
+            >
+              <option value="All">All Groups</option>
+              {SERVICE_GROUPS.map(group => <option key={group} value={group}>{group}</option>)}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -121,7 +143,7 @@ const Dashboard: React.FC = () => {
         <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
           <div className="flex justify-between items-center mb-8">
             <h3 className="text-lg font-bold flex items-center gap-2 text-slate-800">
-              <i className="fas fa-chart-bar text-emerald-500"></i> {selectedCategory === 'All' ? 'Church' : selectedCategory} Weekly
+              <i className="fas fa-chart-bar text-emerald-500"></i> {selectedCategory === 'All' && selectedGroup === 'All' ? 'Church' : `${selectedCategory !== 'All' ? selectedCategory : ''} ${selectedGroup !== 'All' ? selectedGroup : ''}`} Weekly
             </h3>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-full">Current Month</span>
           </div>

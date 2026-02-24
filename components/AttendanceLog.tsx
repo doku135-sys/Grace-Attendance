@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { storageService } from '../services/storageService';
-import { MemberCategory, AttendanceRecord } from '../types';
+import { MemberCategory, AttendanceRecord, ServiceGroup } from '../types';
 
 const AttendanceLog: React.FC = () => {
   const members = storageService.getMembers();
@@ -16,7 +16,10 @@ const AttendanceLog: React.FC = () => {
         return {
           ...record,
           memberName: member ? member.name : 'Unknown Member',
-          category: member ? member.category : 'N/A' as MemberCategory | 'N/A'
+          category: member ? member.category : 'N/A' as MemberCategory | 'N/A',
+          serviceGroup: member ? (member.serviceGroup || 'KC 1') : 'N/A' as ServiceGroup | 'N/A',
+          phone: member ? member.phone : 'N/A',
+          email: member ? member.email : 'N/A'
         };
       })
       .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
@@ -36,13 +39,16 @@ const AttendanceLog: React.FC = () => {
   const handleExportCSV = () => {
     if (filteredData.length === 0) return;
 
-    const headers = ['Timestamp', 'Date', 'Member ID', 'Name', 'Category'];
+    const headers = ['Timestamp', 'Date', 'Member ID', 'Name', 'Category', 'Service Group', 'Phone', 'Email'];
     const rows = filteredData.map(r => [
       new Date(r.timestamp).toLocaleString(),
       r.date,
       r.memberId,
       r.memberName,
-      r.category
+      r.category,
+      r.serviceGroup,
+      r.phone,
+      r.email
     ]);
 
     const csvContent = [
@@ -108,6 +114,7 @@ const AttendanceLog: React.FC = () => {
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Date</th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Member Name</th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Team Category</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Service Group</th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Actions</th>
               </tr>
             </thead>
@@ -138,6 +145,11 @@ const AttendanceLog: React.FC = () => {
                   <td className="px-6 py-4">
                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${getCategoryColor(record.category)}`}>
                       {record.category}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                     <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border bg-indigo-50 text-indigo-600 border-indigo-100">
+                      {record.serviceGroup}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-center">
