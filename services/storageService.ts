@@ -6,12 +6,27 @@ const MEMBERS_KEY = 'church_members';
 const ATTENDANCE_KEY = 'church_attendance';
 const ADMIN_KEY = 'church_admin_creds';
 const SCANNER_KEY = 'church_scanner_creds';
+const USERS_KEY = 'church_users_list';
 const SESSION_KEY = 'church_admin_session';
 const ROLE_KEY = 'church_user_role';
 
 export const storageService = {
   // Authentication
+  fetchUsers: async (): Promise<AdminUser[]> => {
+    const { data, error } = await supabase.from('users').select('*');
+    if (error) {
+      console.error('Error fetching users:', error);
+      return [];
+    }
+    localStorage.setItem(USERS_KEY, JSON.stringify(data));
+    return data as AdminUser[];
+  },
+
   getAdminCreds: (): AdminUser => {
+    const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+    const admin = users.find((u: any) => u.role === 'admin');
+    if (admin) return admin;
+
     const data = localStorage.getItem(ADMIN_KEY);
     if (!data) {
       const defaultAdmin: AdminUser = { username: 'admin', password: 'admin', role: 'admin' };
@@ -31,6 +46,10 @@ export const storageService = {
   },
 
   getScannerCreds: (): AdminUser => {
+    const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+    const scanner = users.find((u: any) => u.role === 'scanner');
+    if (scanner) return scanner;
+
     const data = localStorage.getItem(SCANNER_KEY);
     if (!data) {
       const defaultScanner: AdminUser = { username: 'scanner', password: 'scanner', role: 'scanner' };
@@ -49,16 +68,32 @@ export const storageService = {
     }
   },
 
-  updateAdminPassword: (newPassword: string) => {
+  updateAdminPassword: async (newPassword: string) => {
     const creds = storageService.getAdminCreds();
     creds.password = newPassword;
     localStorage.setItem(ADMIN_KEY, JSON.stringify(creds));
+    
+    const { error } = await supabase
+      .from('users')
+      .update({ password: newPassword })
+      .eq('role', 'admin');
+    
+    if (error) console.error('Error updating admin password in Supabase:', error);
+    await storageService.fetchUsers();
   },
 
-  updateScannerPassword: (newPassword: string) => {
+  updateScannerPassword: async (newPassword: string) => {
     const creds = storageService.getScannerCreds();
     creds.password = newPassword;
     localStorage.setItem(SCANNER_KEY, JSON.stringify(creds));
+
+    const { error } = await supabase
+      .from('users')
+      .update({ password: newPassword })
+      .eq('role', 'scanner');
+    
+    if (error) console.error('Error updating scanner password in Supabase:', error);
+    await storageService.fetchUsers();
   },
 
   setSession: (isAuthenticated: boolean, role?: 'admin' | 'scanner') => {

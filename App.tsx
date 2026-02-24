@@ -21,9 +21,10 @@ const App: React.FC = () => {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
 
   const refreshData = async () => {
-    const [m, a] = await Promise.all([
+    const [m, a, u] = await Promise.all([
       storageService.fetchMembers(),
-      storageService.fetchAttendance()
+      storageService.fetchAttendance(),
+      storageService.fetchUsers()
     ]);
     setMembers(m);
     setAttendance(a);

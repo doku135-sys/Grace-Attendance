@@ -11,10 +11,13 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const adminCreds = storageService.getAdminCreds();
-    const scannerCreds = storageService.getScannerCreds();
+    // Fetch latest users from Supabase before verifying
+    const users = await storageService.fetchUsers();
+    
+    const adminCreds = users.find(u => u.role === 'admin') || storageService.getAdminCreds();
+    const scannerCreds = users.find(u => u.role === 'scanner') || storageService.getScannerCreds();
     
     if (username === adminCreds.username && password === adminCreds.password) {
       storageService.setSession(true, 'admin');

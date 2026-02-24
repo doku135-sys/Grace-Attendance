@@ -20,7 +20,7 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout, onUpdate, u
     setTimeout(() => setMessage({ type: '', text: '' }), 6000);
   };
 
-  const handleUpdatePassword = (e: React.FormEvent) => {
+  const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
       showMsg('error', 'Passwords do not match.');
@@ -30,13 +30,13 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout, onUpdate, u
       showMsg('error', 'Password must be at least 4 characters.');
       return;
     }
-    storageService.updateAdminPassword(newPassword);
+    await storageService.updateAdminPassword(newPassword);
     showMsg('success', 'Admin password updated successfully!');
     setNewPassword('');
     setConfirmPassword('');
   };
 
-  const handleUpdateScannerPassword = (e: React.FormEvent) => {
+  const handleUpdateScannerPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newScannerPassword !== confirmScannerPassword) {
       showMsg('error', 'Scanner passwords do not match.');
@@ -46,7 +46,7 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout, onUpdate, u
       showMsg('error', 'Scanner password must be at least 4 characters.');
       return;
     }
-    storageService.updateScannerPassword(newScannerPassword);
+    await storageService.updateScannerPassword(newScannerPassword);
     showMsg('success', 'Scanner password updated successfully!');
     setNewScannerPassword('');
     setConfirmScannerPassword('');
