@@ -66,7 +66,7 @@ const AttendanceLog: React.FC<AttendanceLogProps> = ({ members, attendance, onUp
     doc.text(`Team: ${exportSettings.category} | Group: ${exportSettings.serviceGroup}`, 14, 30);
     doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 36);
 
-    // 2. Weekly Attendance Graph (Simple Bar Chart)
+    // 2. Identify Report Dates (Sundays + any other day with attendance)
     const sundays: string[] = [];
     const d = new Date(year, month - 1, 1);
     while (d.getMonth() === month - 1) {
@@ -86,22 +86,38 @@ const AttendanceLog: React.FC<AttendanceLogProps> = ({ members, attendance, onUp
              a.date.startsWith(exportSettings.month);
     });
 
-    const weeklyCounts = sundays.map(sun => teamAttendance.filter(a => a.date === sun).length);
-    const maxCount = Math.max(...weeklyCounts, 5);
+    // Find non-Sunday dates that have attendance
+    const eventDates = Array.from(new Set(teamAttendance.map(a => a.date)))
+      .filter(date => !sundays.includes(date))
+      .sort();
+
+    const reportDates = [...sundays, ...eventDates].sort();
+
+    const dailyCounts = reportDates.map(date => teamAttendance.filter(a => a.date === date).length);
+    const avgAttendance = dailyCounts.length > 0 
+      ? (dailyCounts.reduce((acc, curr) => acc + curr, 0) / dailyCounts.length).toFixed(1)
+      : 0;
+    const maxCount = Math.max(...dailyCounts, 5);
+
+    doc.setFontSize(10);
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Average Attendance: ${avgAttendance} per event`, 14, 42);
 
     doc.setFontSize(14);
     doc.setTextColor(30, 41, 59); // Slate-800
-    doc.text(`Weekly ${exportSettings.category} Attendance Summary`, 14, 50);
+    doc.text(`Attendance Summary (Sundays & Events)`, 14, 52);
 
     // Draw simple bars
     const startX = 20;
     const startY = 90;
-    const barWidth = 25;
-    const spacing = 10;
+    const barWidth = 20;
+    const spacing = 8;
     const chartHeight = 30;
 
-    sundays.forEach((sun, i) => {
-      const count = weeklyCounts[i];
+    // Only show first 6 dates in chart to avoid overflow, or scale
+    const chartDates = reportDates.slice(0, 6);
+    chartDates.forEach((dateStr, i) => {
+      const count = teamAttendance.filter(a => a.date === dateStr).length;
       const barHeight = (count / maxCount) * chartHeight;
       
       // Bar
@@ -109,14 +125,14 @@ const AttendanceLog: React.FC<AttendanceLogProps> = ({ members, attendance, onUp
       doc.rect(startX + i * (barWidth + spacing), startY - barHeight, barWidth, barHeight, 'F');
       
       // Label
-      doc.setFontSize(8);
+      doc.setFontSize(7);
       doc.setTextColor(100, 116, 139);
-      const [y, m, day] = sun.split('-').map(Number);
+      const [y, m, day] = dateStr.split('-').map(Number);
       const label = new Date(y, m - 1, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       doc.text(label, startX + i * (barWidth + spacing), startY + 5);
       
       // Count
-      doc.setFontSize(10);
+      doc.setFontSize(9);
       doc.setTextColor(30, 41, 59);
       doc.text(count.toString(), startX + i * (barWidth + spacing) + barWidth/2 - 2, startY - barHeight - 2);
     });
@@ -130,17 +146,21 @@ const AttendanceLog: React.FC<AttendanceLogProps> = ({ members, attendance, onUp
     currentY += 5;
 
     const groupMembers = members.filter(m => m.category === exportSettings.category && m.serviceGroup === exportSettings.serviceGroup);
-    const tableHeaders = ['Name', ...sundays.map(s => {
+    
+    const tableHeaders = ['No.', 'Name', ...reportDates.map(s => {
       const [y, m, day] = s.split('-').map(Number);
       return new Date(y, m - 1, day).toLocaleDateString('en-US', { day: 'numeric' });
-    })];
+    }), 'Total'];
     
-    const tableRows = groupMembers.map(m => {
-      const row = [m.name];
-      sundays.forEach(sun => {
-        const present = attendance.some(a => a.memberId === m.id && a.date === sun);
+    const tableRows = groupMembers.map((m, index) => {
+      const row = [(index + 1).toString(), m.name];
+      let totalPresent = 0;
+      reportDates.forEach(dateStr => {
+        const present = attendance.some(a => a.memberId === m.id && a.date === dateStr);
+        if (present) totalPresent++;
         row.push(present ? 'P' : 'A');
       });
+      row.push(totalPresent.toString());
       return row;
     });
 
@@ -150,10 +170,14 @@ const AttendanceLog: React.FC<AttendanceLogProps> = ({ members, attendance, onUp
       body: tableRows,
       theme: 'grid',
       headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold' },
-      styles: { fontSize: 9, cellPadding: 3 },
-      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 40 } },
+      styles: { fontSize: 8, cellPadding: 2 },
+      columnStyles: { 
+        0: { cellWidth: 10, halign: 'center' },
+        1: { fontStyle: 'bold', cellWidth: 35 },
+        [tableHeaders.length - 1]: { fontStyle: 'bold', halign: 'center', cellWidth: 15 }
+      },
       didParseCell: (data) => {
-        if (data.section === 'body' && data.column.index > 0) {
+        if (data.section === 'body' && data.column.index > 1 && data.column.index < tableHeaders.length - 1) {
           if (data.cell.text[0] === 'P') {
             data.cell.styles.textColor = [16, 185, 129]; // Emerald
           } else {

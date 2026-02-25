@@ -40,6 +40,7 @@ const Dashboard: React.FC<DashboardProps> = ({ members, attendance }) => {
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth();
+    const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
     
     // Find all Sundays in the current month
     const sundays: { date: string, label: string }[] = [];
@@ -56,9 +57,29 @@ const Dashboard: React.FC<DashboardProps> = ({ members, attendance }) => {
       date.setDate(date.getDate() + 1);
     }
 
-    return sundays.map(sunday => {
-      const count = filteredAttendance.filter(a => a.date === sunday.date).length;
-      return { name: sunday.label, count };
+    // Find non-Sunday dates that have attendance in current month
+    const sundayDates = sundays.map(s => s.date);
+    const eventDates = Array.from(new Set(filteredAttendance
+      .filter(a => a.date.startsWith(monthStr) && !sundayDates.includes(a.date))
+      .map(a => a.date)))
+      .sort();
+
+    const allReportDates = [...sundays.map(s => ({ ...s, isSunday: true }))];
+    eventDates.forEach(dStr => {
+      const [y, m, d] = dStr.split('-').map(Number);
+      allReportDates.push({
+        date: dStr,
+        label: new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        isSunday: false
+      });
+    });
+
+    // Sort all dates
+    allReportDates.sort((a, b) => a.date.localeCompare(b.date));
+
+    return allReportDates.map(d => {
+      const count = filteredAttendance.filter(a => a.date === d.date).length;
+      return { name: d.label, count, isSunday: d.isSunday };
     });
   }, [filteredAttendance]);
 
@@ -140,10 +161,10 @@ const Dashboard: React.FC<DashboardProps> = ({ members, attendance }) => {
           <p className="text-3xl font-black text-slate-800 mt-1">{filteredMembers.length}</p>
         </div>
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Avg Sunday</p>
+          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Avg Attendance</p>
           <p className="text-3xl font-black text-emerald-600 mt-1">
-            {weeklyData.filter(w => w.count > 0).length ? 
-              Math.round(weeklyData.reduce((acc, v) => acc + v.count, 0) / weeklyData.filter(w => w.count > 0).length) : 0}
+            {weeklyData.length ? 
+              Math.round(weeklyData.reduce((acc, v) => acc + v.count, 0) / weeklyData.length) : 0}
           </p>
         </div>
       </div>
@@ -153,7 +174,7 @@ const Dashboard: React.FC<DashboardProps> = ({ members, attendance }) => {
         <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
           <div className="flex justify-between items-center mb-8">
             <h3 className="text-lg font-bold flex items-center gap-2 text-slate-800">
-              <i className="fas fa-chart-bar text-emerald-500"></i> {selectedCategory === 'All' && selectedGroup === 'All' ? 'Church' : `${selectedCategory !== 'All' ? selectedCategory : ''} ${selectedGroup !== 'All' ? selectedGroup : ''}`} Weekly
+              <i className="fas fa-chart-bar text-emerald-500"></i> {selectedCategory === 'All' && selectedGroup === 'All' ? 'Church' : `${selectedCategory !== 'All' ? selectedCategory : ''} ${selectedGroup !== 'All' ? selectedGroup : ''}`} Activity
             </h3>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-full">{currentMonthNameYear}</span>
           </div>
@@ -168,12 +189,22 @@ const Dashboard: React.FC<DashboardProps> = ({ members, attendance }) => {
                   contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', padding: '12px' }}
                 />
                 <Bar dataKey="count" radius={[8, 8, 0, 0]} barSize={40}>
-                  {weeklyData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.count > 0 ? '#10b981' : '#e2e8f0'} />
+                  {weeklyData.map((entry: any, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.isSunday ? '#10b981' : '#6366f1'} />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
+          </div>
+          <div className="mt-4 flex items-center justify-center gap-6 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+              <span>Sunday</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-indigo-500"></div>
+              <span>Event</span>
+            </div>
           </div>
         </div>
 
