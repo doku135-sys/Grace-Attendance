@@ -211,7 +211,8 @@ export const storageService = {
     const day = String(now.getDate()).padStart(2, '0');
     const date = `${year}-${month}-${day}`;
     
-    const records = storageService.getAttendance();
+    // Fetch latest attendance to ensure we don't have stale local data
+    const records = await storageService.fetchAttendance();
     
     const alreadyPresent = records.some(r => r.memberId === memberId && r.date === date);
     if (alreadyPresent) return false;
@@ -222,10 +223,15 @@ export const storageService = {
       timestamp: now.toISOString(),
     };
     
-    localStorage.setItem(ATTENDANCE_KEY, JSON.stringify([...records, newRecord]));
+    // Update local storage immediately for UI responsiveness
+    const updatedRecords = [...records, newRecord];
+    localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(updatedRecords));
     
     const { error } = await supabase.from('attendance').insert([newRecord]);
-    if (error) console.error('Error recording attendance to Supabase:', error);
+    if (error) {
+      console.error('Error recording attendance to Supabase:', error);
+      // If Supabase fails, we might want to revert local storage or handle it
+    }
     
     return true;
   },

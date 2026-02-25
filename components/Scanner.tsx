@@ -10,6 +10,7 @@ interface ScannerProps {
 
 const Scanner: React.FC<ScannerProps> = ({ onScan, statusMessage }) => {
   const scannerRef = useRef<any>(null);
+  const lastScanTime = useRef<number>(0);
   const [error, setError] = useState<string | null>(null);
   const [manualId, setManualId] = useState('');
   const [isReady, setIsReady] = useState(false);
@@ -24,7 +25,11 @@ const Scanner: React.FC<ScannerProps> = ({ onScan, statusMessage }) => {
       { facingMode: "environment" },
       config,
       (decodedText: string) => {
-        onScan(decodedText);
+        const now = Date.now();
+        if (now - lastScanTime.current > 3000) { // 3 second cooldown
+          lastScanTime.current = now;
+          onScan(decodedText);
+        }
       },
       (errorMessage: string) => {
         // Log is too noisy, ignore standard scan failures

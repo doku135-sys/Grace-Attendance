@@ -78,14 +78,62 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ members, onUpdate }
     try {
       const response = await fetch(qrUrl);
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `QR_${member.name.replace(/\s+/g, '_')}_${member.id}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      const img = new Image();
+      const url = URL.createObjectURL(blob);
+      
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // Set dimensions (500x500 QR + padding for text and border)
+        const padding = 60;
+        const topPadding = 100;
+        canvas.width = 500 + (padding * 2);
+        canvas.height = 500 + topPadding + padding;
+
+        // 1. Draw Background
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 2. Draw Purple Border (Indigo-600 style)
+        ctx.strokeStyle = '#4f46e5';
+        ctx.lineWidth = 15;
+        ctx.strokeRect(ctx.lineWidth/2, ctx.lineWidth/2, canvas.width - ctx.lineWidth, canvas.height - ctx.lineWidth);
+
+        // 3. Draw Header Text
+        ctx.fillStyle = '#1e293b'; // Slate-800
+        ctx.textAlign = 'center';
+        
+        // Category + Group
+        ctx.font = 'bold 24px sans-serif';
+        ctx.fillText(`${member.category} • ${member.serviceGroup}`, canvas.width / 2, 45);
+        
+        // Name
+        ctx.font = 'black 36px sans-serif';
+        ctx.fillStyle = '#4f46e5'; // Indigo-600
+        ctx.fillText(member.name.toUpperCase(), canvas.width / 2, 85);
+
+        // 4. Draw QR Code
+        ctx.drawImage(img, padding, topPadding);
+
+        // 5. Draw ID at bottom
+        ctx.fillStyle = '#94a3b8'; // Slate-400
+        ctx.font = 'bold 18px monospace';
+        ctx.fillText(`ID: ${member.id}`, canvas.width / 2, canvas.height - 25);
+
+        // 6. Download
+        const dataUrl = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = `QR_${member.name.replace(/\s+/g, '_')}_${member.id}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      };
+      
+      img.src = url;
     } catch (err) {
       console.error("Failed to download QR code", err);
     }
