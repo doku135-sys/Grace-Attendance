@@ -7,13 +7,13 @@ import Scanner from './components/Scanner';
 import Login from './components/Login';
 import AccountSettings from './components/AccountSettings';
 import { storageService } from './services/storageService';
-import { Member, AttendanceRecord } from './types';
+import { Member, AttendanceRecord, UserRole } from './types';
 
 type View = 'dashboard' | 'members' | 'scan' | 'log' | 'account';
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [userRole, setUserRole] = useState<'admin' | 'scanner' | null>(null);
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [scanStatus, setScanStatus] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -103,7 +103,7 @@ const App: React.FC = () => {
           </div>
           
           <nav className="hidden md:flex items-center gap-6">
-            {(userRole === 'admin' ? ['dashboard', 'members', 'scan', 'log'] : ['dashboard', 'scan']).map((view) => (
+            {((userRole === 'admin' || userRole === 'superadmin') ? ['dashboard', 'members', 'scan', 'log'] : ['dashboard', 'scan']).map((view) => (
               <button
                 key={view}
                 type="button"
@@ -142,8 +142,8 @@ const App: React.FC = () => {
 
       <main className="flex-1 max-w-7xl mx-auto w-full p-4 md:p-8">
         {currentView === 'dashboard' && <Dashboard members={members} attendance={attendance} />}
-        {currentView === 'members' && userRole === 'admin' && <MemberManagement members={members} onUpdate={refreshData} />}
-        {currentView === 'log' && userRole === 'admin' && <AttendanceLog members={members} attendance={attendance} onUpdate={refreshData} />}
+        {currentView === 'members' && (userRole === 'admin' || userRole === 'superadmin') && <MemberManagement members={members} onUpdate={refreshData} />}
+        {currentView === 'log' && (userRole === 'admin' || userRole === 'superadmin') && <AttendanceLog members={members} attendance={attendance} onUpdate={refreshData} />}
         {currentView === 'account' && <AccountSettings onLogout={handleLogout} onUpdate={refreshData} userRole={userRole} />}
         {currentView === 'scan' && (
           <div className="flex flex-col items-center">
@@ -172,7 +172,7 @@ const App: React.FC = () => {
           <i className="fas fa-th-large text-lg"></i>
           <span className="text-[10px] font-bold uppercase mt-1">Home</span>
         </button>
-        {userRole === 'admin' && (
+        {(userRole === 'admin' || userRole === 'superadmin') && (
           <button type="button" onClick={() => setCurrentView('members')} className={`flex flex-col items-center ${currentView === 'members' ? 'text-indigo-600' : 'text-slate-400'}`}>
             <i className="fas fa-users text-lg"></i>
             <span className="text-[10px] font-bold uppercase mt-1">Folks</span>
@@ -181,7 +181,7 @@ const App: React.FC = () => {
         <button type="button" onClick={() => setCurrentView('scan')} className={`relative flex items-center justify-center w-12 h-12 -mt-10 rounded-full bg-indigo-600 text-white shadow-lg shadow-indigo-200 ring-4 ring-slate-50 ${currentView === 'scan' ? 'bg-indigo-700' : ''}`}>
           <i className="fas fa-barcode text-xl"></i>
         </button>
-        {userRole === 'admin' && (
+        {(userRole === 'admin' || userRole === 'superadmin') && (
           <button type="button" onClick={() => setCurrentView('log')} className={`flex flex-col items-center ${currentView === 'log' ? 'text-indigo-600' : 'text-slate-400'}`}>
             <i className="fas fa-calendar-check text-lg"></i>
             <span className="text-[10px] font-bold uppercase mt-1">Logs</span>

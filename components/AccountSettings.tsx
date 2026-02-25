@@ -2,10 +2,12 @@
 import React, { useState } from 'react';
 import { storageService } from '../services/storageService';
 
+import { UserRole } from '../types';
+
 interface AccountSettingsProps {
   onLogout?: () => void;
   onUpdate: () => Promise<void>;
-  userRole: 'admin' | 'scanner' | null;
+  userRole: UserRole | null;
 }
 
 const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout, onUpdate, userRole }) => {
@@ -13,6 +15,8 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout, onUpdate, u
   const [confirmPassword, setConfirmPassword] = useState('');
   const [newScannerPassword, setNewScannerPassword] = useState('');
   const [confirmScannerPassword, setConfirmScannerPassword] = useState('');
+  const [newSuperAdminPassword, setNewSuperAdminPassword] = useState('');
+  const [confirmSuperAdminPassword, setConfirmSuperAdminPassword] = useState('');
   const [message, setMessage] = useState({ type: '', text: '' });
 
   const showMsg = (type: 'success' | 'error', text: string) => {
@@ -34,6 +38,22 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout, onUpdate, u
     showMsg('success', 'Admin password updated successfully!');
     setNewPassword('');
     setConfirmPassword('');
+  };
+
+  const handleUpdateSuperAdminPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newSuperAdminPassword !== confirmSuperAdminPassword) {
+      showMsg('error', 'Superadmin passwords do not match.');
+      return;
+    }
+    if (newSuperAdminPassword.length < 4) {
+      showMsg('error', 'Superadmin password must be at least 4 characters.');
+      return;
+    }
+    await storageService.updateSuperAdminPassword(newSuperAdminPassword);
+    showMsg('success', 'Superadmin password updated successfully!');
+    setNewSuperAdminPassword('');
+    setConfirmSuperAdminPassword('');
   };
 
   const handleUpdateScannerPassword = async (e: React.FormEvent) => {
@@ -124,8 +144,46 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout, onUpdate, u
       </div>
 
       <div className="space-y-6">
-        {/* ADMIN PASSWORD SECTION */}
-        {userRole === 'admin' && (
+        {/* SUPERADMIN PASSWORD SECTION (Only for Superadmin) */}
+        {userRole === 'superadmin' && (
+          <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100">
+            <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-3">
+              <div className="w-10 h-10 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center">
+                <i className="fas fa-user-shield"></i>
+              </div>
+              Update My Password (Superadmin)
+            </h3>
+            <form onSubmit={handleUpdateSuperAdminPassword} className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input
+                  required
+                  type="password"
+                  value={newSuperAdminPassword}
+                  placeholder="New Superadmin Password"
+                  onChange={(e) => setNewSuperAdminPassword(e.target.value)}
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-purple-500 outline-none transition"
+                />
+                <input
+                  required
+                  type="password"
+                  value={confirmSuperAdminPassword}
+                  placeholder="Confirm Superadmin Password"
+                  onChange={(e) => setConfirmSuperAdminPassword(e.target.value)}
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-purple-500 outline-none transition"
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full sm:w-auto px-10 py-4 bg-purple-600 text-white rounded-2xl font-bold hover:bg-purple-700 transition shadow-lg shadow-purple-50"
+              >
+                Update Superadmin Password
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* ADMIN PASSWORD SECTION (Only for Superadmin) */}
+        {userRole === 'superadmin' && (
           <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100">
             <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-3">
               <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
@@ -139,7 +197,7 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout, onUpdate, u
                   required
                   type="password"
                   value={newPassword}
-                  placeholder="New Password"
+                  placeholder="New Admin Password"
                   onChange={(e) => setNewPassword(e.target.value)}
                   className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition"
                 />
@@ -147,7 +205,7 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout, onUpdate, u
                   required
                   type="password"
                   value={confirmPassword}
-                  placeholder="Confirm Password"
+                  placeholder="Confirm Admin Password"
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition"
                 />
@@ -156,14 +214,14 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout, onUpdate, u
                 type="submit"
                 className="w-full sm:w-auto px-10 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-50"
               >
-                Update Password
+                Update Admin Password
               </button>
             </form>
           </div>
         )}
 
-        {/* SCANNER PASSWORD SECTION */}
-        {userRole === 'admin' && (
+        {/* SCANNER PASSWORD SECTION (Only for Superadmin) */}
+        {userRole === 'superadmin' && (
           <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100">
             <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-3">
               <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
@@ -200,6 +258,16 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout, onUpdate, u
           </div>
         )}
 
+        {userRole === 'admin' && (
+          <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 text-center">
+            <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <i className="fas fa-user-cog text-2xl"></i>
+            </div>
+            <h3 className="text-xl font-bold text-slate-800 mb-2">Admin Account</h3>
+            <p className="text-slate-500 text-sm">You are logged in as an administrator. You have full access to manage members and attendance. Password management is restricted to Superadmin.</p>
+          </div>
+        )}
+
         {userRole === 'scanner' && (
           <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 text-center">
             <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -225,7 +293,7 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({ onLogout, onUpdate, u
             onClick={onLogout}
             className="w-full py-5 bg-white border-2 border-red-100 text-red-500 rounded-[2.5rem] font-black text-xs uppercase tracking-widest hover:bg-red-50 transition flex items-center justify-center gap-3 shadow-sm"
           >
-            <i className="fas fa-power-off"></i> Logout {userRole === 'scanner' ? 'Scanner' : 'Admin'}
+            <i className="fas fa-power-off"></i> Logout {userRole === 'scanner' ? 'Scanner' : userRole === 'admin' ? 'Admin' : 'Superadmin'}
           </button>
         </div>
       </div>

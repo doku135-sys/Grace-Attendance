@@ -1,5 +1,5 @@
 
-import { Member, AttendanceRecord, AdminUser } from '../types';
+import { Member, AttendanceRecord, AdminUser, UserRole } from '../types';
 import { supabase } from './supabaseClient';
 
 const MEMBERS_KEY = 'church_members';
@@ -96,7 +96,24 @@ export const storageService = {
     await storageService.fetchUsers();
   },
 
-  setSession: (isAuthenticated: boolean, role?: 'admin' | 'scanner') => {
+  getSuperAdminCreds: (): AdminUser => {
+    const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+    const superadmin = users.find((u: any) => u.role === 'superadmin');
+    if (superadmin) return superadmin;
+    return { username: 'superadmin', password: 'superadmin', role: 'superadmin' };
+  },
+
+  updateSuperAdminPassword: async (newPassword: string) => {
+    const { error } = await supabase
+      .from('users')
+      .update({ password: newPassword })
+      .eq('role', 'superadmin');
+    
+    if (error) console.error('Error updating superadmin password in Supabase:', error);
+    await storageService.fetchUsers();
+  },
+
+  setSession: (isAuthenticated: boolean, role?: UserRole) => {
     if (isAuthenticated && role) {
       localStorage.setItem(SESSION_KEY, 'true');
       localStorage.setItem(ROLE_KEY, role);
@@ -110,8 +127,8 @@ export const storageService = {
     return localStorage.getItem(SESSION_KEY) === 'true';
   },
 
-  getUserRole: (): 'admin' | 'scanner' | null => {
-    return localStorage.getItem(ROLE_KEY) as 'admin' | 'scanner' | null;
+  getUserRole: (): UserRole | null => {
+    return localStorage.getItem(ROLE_KEY) as UserRole | null;
   },
 
   // Members

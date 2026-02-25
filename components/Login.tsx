@@ -18,8 +18,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     
     const adminCreds = users.find(u => u.role === 'admin') || storageService.getAdminCreds();
     const scannerCreds = users.find(u => u.role === 'scanner') || storageService.getScannerCreds();
+    const superAdminCreds = users.find(u => u.role === 'superadmin') || storageService.getSuperAdminCreds();
     
-    if (username === adminCreds.username && password === adminCreds.password) {
+    if (username === superAdminCreds.username && password === superAdminCreds.password) {
+      storageService.setSession(true, 'superadmin');
+      onLogin();
+    } else if (username === adminCreds.username && password === adminCreds.password) {
       storageService.setSession(true, 'admin');
       onLogin();
     } else if (username === scannerCreds.username && password === scannerCreds.password) {

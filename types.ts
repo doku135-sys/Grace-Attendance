@@ -29,7 +29,7 @@ export interface AIInsight {
   growthTrend: string;
 }
 
-export type UserRole = 'admin' | 'scanner';
+export type UserRole = 'superadmin' | 'admin' | 'scanner';
 
 export interface AdminUser {
   username: string;
