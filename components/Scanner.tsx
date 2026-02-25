@@ -18,6 +18,7 @@ const Scanner: React.FC<ScannerProps> = ({ onScan, statusMessage }) => {
   useEffect(() => {
     const html5QrCode = new Html5Qrcode("reader");
     scannerRef.current = html5QrCode;
+    let isMounted = true;
 
     const config = { fps: 10, qrbox: { width: 250, height: 250 } };
 
@@ -31,24 +32,35 @@ const Scanner: React.FC<ScannerProps> = ({ onScan, statusMessage }) => {
           onScan(decodedText);
         }
       },
-      (errorMessage: string) => {
-        // Log is too noisy, ignore standard scan failures
-      }
+      () => {} // Ignore scan errors
     ).then(() => {
-      setIsReady(true);
+      if (isMounted) {
+        setIsReady(true);
+      } else {
+        // If unmounted during startup, stop it immediately
+        html5QrCode.stop().catch(() => {});
+      }
     }).catch((err: any) => {
-      console.error(err);
-      setError("Camera access denied or unavailable. Please check permissions.");
+      if (isMounted) {
+        console.error(err);
+        setError("Camera access denied or unavailable. Please check permissions.");
+      }
     });
 
     return () => {
+      isMounted = false;
       if (scannerRef.current) {
-        // Only stop if the scanner was actually started successfully
-        if (scannerRef.current.isScanning) {
-          scannerRef.current.stop().catch((e: any) => {
-            // Silently fail if stop is called on an already stopped instance
-          });
-        }
+        const stopScanner = async () => {
+          try {
+            if (scannerRef.current.getState() > 1) { // 1 is NOT_STARTED, >1 means scanning or starting
+              await scannerRef.current.stop();
+              await scannerRef.current.clear();
+            }
+          } catch (e) {
+            console.warn("Scanner stop error:", e);
+          }
+        };
+        stopScanner();
       }
     };
   }, [onScan]);
