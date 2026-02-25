@@ -17,6 +17,8 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ members, onUpdate }
   const [showQRModal, setShowQRModal] = useState<Member | null>(null);
   const [showStatsModal, setShowStatsModal] = useState<Member | null>(null);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
+  const [filterCategory, setFilterCategory] = useState<MemberCategory | 'All'>('All');
+  const [filterGroup, setFilterGroup] = useState<ServiceGroup | 'All'>('All');
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -156,17 +158,43 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ members, onUpdate }
     }));
   }, [showStatsModal, attendance]);
 
+  const filteredMembers = useMemo(() => {
+    return members.filter(m => {
+      const categoryMatch = filterCategory === 'All' || m.category === filterCategory;
+      const groupMatch = filterGroup === 'All' || m.serviceGroup === filterGroup;
+      return categoryMatch && groupMatch;
+    });
+  }, [members, filterCategory, filterGroup]);
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-slate-800">Church Members ({members.length})</h2>
-        <button 
-          type="button"
-          onClick={() => handleOpenModal()}
-          className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl hover:bg-indigo-700 transition flex items-center gap-2 shadow-lg shadow-indigo-200 font-bold"
-        >
-          <i className="fas fa-plus"></i> Add New Member
-        </button>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <h2 className="text-2xl font-bold text-slate-800">Church Members ({filteredMembers.length})</h2>
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+          <select 
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value as any)}
+            className="px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm text-slate-700 shadow-sm"
+          >
+            <option value="All">All Categories</option>
+            {CATEGORIES.map((cat: MemberCategory) => <option key={cat} value={cat}>{cat}</option>)}
+          </select>
+          <select 
+            value={filterGroup}
+            onChange={(e) => setFilterGroup(e.target.value as any)}
+            className="px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm text-slate-700 shadow-sm"
+          >
+            <option value="All">All Groups</option>
+            {SERVICE_GROUPS.map((group: ServiceGroup) => <option key={group} value={group}>{group}</option>)}
+          </select>
+          <button 
+            type="button"
+            onClick={() => handleOpenModal()}
+            className="bg-indigo-600 text-white px-5 py-2 rounded-xl hover:bg-indigo-700 transition flex items-center gap-2 shadow-lg shadow-indigo-200 font-bold"
+          >
+            <i className="fas fa-plus"></i> Add New Member
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
@@ -182,13 +210,13 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ members, onUpdate }
               </tr>
             </thead>
             <tbody className="divide-y">
-              {members.length === 0 ? (
+              {filteredMembers.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-slate-400 italic">
-                    No members registered yet.
+                    No members found matching the filters.
                   </td>
                 </tr>
-              ) : members.map((member) => (
+              ) : filteredMembers.map((member) => (
                 <tr key={member.id} className="hover:bg-slate-50/50 transition group">
                   <td className="px-6 py-4">
                     <div className="font-bold text-slate-800">{member.name}</div>
