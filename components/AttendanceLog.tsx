@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { storageService } from '../services/storageService';
-import { MemberCategory, AttendanceRecord, ServiceGroup, Member } from '../types';
+import { MemberCategory, AttendanceRecord, ServiceGroup, Member, UserRole } from '../types';
 
 import { CATEGORIES, SERVICE_GROUPS } from '../constants';
 
@@ -12,9 +12,10 @@ interface AttendanceLogProps {
   members: Member[];
   attendance: AttendanceRecord[];
   onUpdate: () => Promise<void>;
+  userRole: UserRole | null;
 }
 
-const AttendanceLog: React.FC<AttendanceLogProps> = ({ members, attendance, onUpdate }) => {
+const AttendanceLog: React.FC<AttendanceLogProps> = ({ members, attendance, onUpdate, userRole }) => {
   const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportSettings, setExportSettings] = useState({
@@ -329,8 +330,9 @@ const AttendanceLog: React.FC<AttendanceLogProps> = ({ members, attendance, onUp
                   <td className="px-6 py-4 text-center">
                     <button
                       onClick={() => handleDeleteRecord(record.memberId, record.timestamp)}
-                      className="p-2 text-red-300 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Delete Entry"
+                      className={`p-2 rounded-lg transition-colors ${userRole === 'superadmin' ? 'text-red-300 hover:text-red-600 hover:bg-red-50' : 'text-red-100 cursor-not-allowed'}`}
+                      title={userRole === 'superadmin' ? "Delete Entry" : "Delete restricted to Superadmin"}
+                      disabled={userRole !== 'superadmin'}
                     >
                       <i className="fas fa-trash-alt"></i>
                     </button>

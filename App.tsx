@@ -142,8 +142,8 @@ const App: React.FC = () => {
 
       <main className="flex-1 max-w-7xl mx-auto w-full p-4 md:p-8">
         {currentView === 'dashboard' && <Dashboard members={members} attendance={attendance} />}
-        {currentView === 'members' && (userRole === 'admin' || userRole === 'superadmin') && <MemberManagement members={members} onUpdate={refreshData} />}
-        {currentView === 'log' && (userRole === 'admin' || userRole === 'superadmin') && <AttendanceLog members={members} attendance={attendance} onUpdate={refreshData} />}
+        {currentView === 'members' && (userRole === 'admin' || userRole === 'superadmin') && <MemberManagement members={members} onUpdate={refreshData} userRole={userRole} />}
+        {currentView === 'log' && (userRole === 'admin' || userRole === 'superadmin') && <AttendanceLog members={members} attendance={attendance} onUpdate={refreshData} userRole={userRole} />}
         {currentView === 'account' && <AccountSettings onLogout={handleLogout} onUpdate={refreshData} userRole={userRole} />}
         {currentView === 'scan' && (
           <div className="flex flex-col items-center">

@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { storageService } from '../services/storageService';
-import { Member, MemberCategory, ServiceGroup } from '../types';
+import { Member, MemberCategory, ServiceGroup, UserRole } from '../types';
 import { CATEGORIES, SERVICE_GROUPS } from '../constants';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -10,9 +10,10 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 interface MemberManagementProps {
   members: Member[];
   onUpdate: () => Promise<void>;
+  userRole: UserRole | null;
 }
 
-const MemberManagement: React.FC<MemberManagementProps> = ({ members, onUpdate }) => {
+const MemberManagement: React.FC<MemberManagementProps> = ({ members, onUpdate, userRole }) => {
   const [showModal, setShowModal] = useState(false);
   const [showQRModal, setShowQRModal] = useState<Member | null>(null);
   const [showStatsModal, setShowStatsModal] = useState<Member | null>(null);
@@ -257,16 +258,18 @@ const MemberManagement: React.FC<MemberManagementProps> = ({ members, onUpdate }
                       <button 
                         type="button"
                         onClick={() => handleOpenModal(member)}
-                        className="p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-lg transition"
-                        title="Edit Profile"
+                        className={`p-2 rounded-lg transition ${userRole === 'superadmin' ? 'text-slate-400 hover:bg-slate-100 hover:text-slate-600' : 'text-slate-200 cursor-not-allowed'}`}
+                        title={userRole === 'superadmin' ? "Edit Profile" : "Edit restricted to Superadmin"}
+                        disabled={userRole !== 'superadmin'}
                       >
                         <i className="fas fa-edit"></i>
                       </button>
                       <button 
                         type="button"
                         onClick={(e) => handleDeleteMember(e, member.id)}
-                        className="p-2 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition"
-                        title="Delete Member"
+                        className={`p-2 rounded-lg transition ${userRole === 'superadmin' ? 'text-red-400 hover:bg-red-50 hover:text-red-600' : 'text-red-100 cursor-not-allowed'}`}
+                        title={userRole === 'superadmin' ? "Delete Member" : "Delete restricted to Superadmin"}
+                        disabled={userRole !== 'superadmin'}
                       >
                         <i className="fas fa-trash-alt"></i>
                       </button>
