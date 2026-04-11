@@ -18,9 +18,17 @@ interface AttendanceLogProps {
 const AttendanceLog: React.FC<AttendanceLogProps> = ({ members, attendance, onUpdate, userRole }) => {
   const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showManualModal, setShowManualModal] = useState(false);
   const [exportSettings, setExportSettings] = useState({
     month: new Date().toISOString().slice(0, 7),
     category: 'Usher' as MemberCategory,
+    serviceGroup: 'KC 1' as ServiceGroup
+  });
+
+  const [manualEntry, setManualEntry] = useState({
+    memberId: '',
+    date: new Date().toISOString().split('T')[0],
+    category: 'Praise and Worship' as MemberCategory,
     serviceGroup: 'KC 1' as ServiceGroup
   });
 
@@ -192,6 +200,33 @@ const AttendanceLog: React.FC<AttendanceLogProps> = ({ members, attendance, onUp
     setShowExportModal(false);
   };
 
+  const handleManualSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualEntry.memberId) {
+      alert('Please select a member');
+      return;
+    }
+
+    const success = await storageService.recordManualAttendance(manualEntry.memberId, manualEntry.date);
+    if (success) {
+      await onUpdate();
+      setShowManualModal(false);
+      setManualEntry({
+        ...manualEntry,
+        memberId: ''
+      });
+    } else {
+      alert('This member is already recorded for the selected date.');
+    }
+  };
+
+  const filteredMembersForManual = useMemo(() => {
+    return members.filter(m => 
+      m.category === manualEntry.category && 
+      m.serviceGroup === manualEntry.serviceGroup
+    ).sort((a, b) => a.name.localeCompare(b.name));
+  }, [members, manualEntry.category, manualEntry.serviceGroup]);
+
   const getCategoryColor = (category: string) => {
     switch(category) {
       case 'Praise and Worship': return 'bg-indigo-50 text-indigo-600 border-indigo-100';
@@ -213,6 +248,15 @@ const AttendanceLog: React.FC<AttendanceLogProps> = ({ members, attendance, onUp
             onChange={e => setFilterMonth(e.target.value)}
             className="flex-1 md:flex-none px-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm font-bold text-slate-700"
           />
+          {userRole === 'superadmin' && (
+            <button 
+              onClick={() => setShowManualModal(true)}
+              className="px-5 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition flex items-center gap-2 shadow-lg shadow-indigo-200 font-bold"
+            >
+              <i className="fas fa-plus"></i>
+              <span className="hidden sm:inline">Manual Entry</span>
+            </button>
+          )}
           <button 
             onClick={() => setShowExportModal(true)}
             disabled={members.length === 0}
@@ -276,6 +320,81 @@ const AttendanceLog: React.FC<AttendanceLogProps> = ({ members, attendance, onUp
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manual Entry Modal */}
+      {showManualModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-[2rem] p-8 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
+            <h3 className="text-2xl font-bold text-slate-900 mb-6">Manual Attendance Entry</h3>
+            <form onSubmit={handleManualSubmit} className="space-y-5">
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Ministry Category</label>
+                <select 
+                  value={manualEntry.category}
+                  onChange={e => setManualEntry({...manualEntry, category: e.target.value as MemberCategory, memberId: ''})}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition"
+                >
+                  {CATEGORIES.map((cat: MemberCategory) => <option key={cat} value={cat}>{cat}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Service Group</label>
+                <select 
+                  value={manualEntry.serviceGroup}
+                  onChange={e => setManualEntry({...manualEntry, serviceGroup: e.target.value as ServiceGroup, memberId: ''})}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition"
+                >
+                  {SERVICE_GROUPS.map((group: ServiceGroup) => <option key={group} value={group}>{group}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Select Member</label>
+                <select 
+                  required
+                  value={manualEntry.memberId}
+                  onChange={e => setManualEntry({...manualEntry, memberId: e.target.value})}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition"
+                >
+                  <option value="">-- Select Member --</option>
+                  {filteredMembersForManual.map(m => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+                {filteredMembersForManual.length === 0 && (
+                  <p className="text-[10px] text-rose-500 font-bold mt-1 ml-1">No members found in this category/group.</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Attendance Date</label>
+                <input 
+                  required
+                  type="date" 
+                  value={manualEntry.date}
+                  onChange={e => setManualEntry({...manualEntry, date: e.target.value})}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowManualModal(false)}
+                  className="flex-1 px-6 py-3 border border-slate-200 text-slate-600 rounded-2xl font-bold hover:bg-slate-50 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!manualEntry.memberId}
+                  className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Add Record
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

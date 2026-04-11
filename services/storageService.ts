@@ -236,6 +236,35 @@ export const storageService = {
     return true;
   },
 
+  recordManualAttendance: async (memberId: string, date: string) => {
+    // Fetch latest attendance to ensure we don't have stale local data
+    const records = await storageService.fetchAttendance();
+    
+    const alreadyPresent = records.some(r => r.memberId === memberId && r.date === date);
+    if (alreadyPresent) return false;
+
+    // For manual entry, we'll use the selected date at noon local time for the timestamp
+    // to avoid timezone issues while still having a valid ISO string
+    const timestamp = new Date(`${date}T12:00:00`).toISOString();
+
+    const newRecord: AttendanceRecord = {
+      memberId,
+      date,
+      timestamp,
+    };
+    
+    // Update local storage immediately for UI responsiveness
+    const updatedRecords = [...records, newRecord];
+    localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(updatedRecords));
+    
+    const { error } = await supabase.from('attendance').insert([newRecord]);
+    if (error) {
+      console.error('Error recording manual attendance to Supabase:', error);
+    }
+    
+    return true;
+  },
+
   deleteAttendanceRecord: async (memberId: string, timestamp: string): Promise<AttendanceRecord[]> => {
     const records = storageService.getAttendance();
     const updatedRecords = records.filter(r => !(r.memberId === memberId && r.timestamp === timestamp));
