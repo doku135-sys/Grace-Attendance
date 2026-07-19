@@ -166,14 +166,21 @@ const AttendanceLog: React.FC<AttendanceLogProps> = ({ members, attendance, onUp
     const tableRows = groupMembers.map((m, index) => {
       const row = [(index + 1).toString(), m.name];
       let totalPresent = 0;
+      let sundayPresent = 0;
       reportDates.forEach(dateStr => {
         const present = attendance.some(a => a.memberId === m.id && a.date === dateStr);
-        if (present) totalPresent++;
+        if (present) {
+          totalPresent++;
+          if (sundays.includes(dateStr)) {
+            sundayPresent++;
+          }
+        }
         row.push(present ? 'P' : 'A');
       });
       const totalDates = reportDates.length;
       row.push(`${totalPresent}/${totalDates}`);
-      const percentage = totalDates > 0 ? Math.round((totalPresent / totalDates) * 100) : 0;
+      const totalSundays = sundays.length;
+      const percentage = totalSundays > 0 ? Math.round((sundayPresent / totalSundays) * 100) : 0;
       row.push(`${percentage}%`);
       return row;
     });
@@ -192,11 +199,20 @@ const AttendanceLog: React.FC<AttendanceLogProps> = ({ members, attendance, onUp
         [tableHeaders.length - 1]: { fontStyle: 'bold', halign: 'center', cellWidth: 12 }
       },
       didParseCell: (data) => {
-        if (data.section === 'body' && data.column.index > 1 && data.column.index < tableHeaders.length - 2) {
-          if (data.cell.text[0] === 'P') {
-            data.cell.styles.textColor = [16, 185, 129]; // Emerald
-          } else {
-            data.cell.styles.textColor = [244, 63, 94]; // Rose
+        if (data.section === 'body') {
+          if (data.column.index > 1 && data.column.index < tableHeaders.length - 2) {
+            if (data.cell.text[0] === 'P') {
+              data.cell.styles.textColor = [16, 185, 129]; // Emerald
+            } else {
+              data.cell.styles.textColor = [244, 63, 94]; // Rose
+            }
+          }
+          if (data.column.index === tableHeaders.length - 1) {
+            const pctText = data.cell.text[0];
+            const pctValue = parseInt(pctText.replace('%', ''), 10);
+            if (!isNaN(pctValue) && pctValue < 50) {
+              data.cell.styles.textColor = [220, 38, 38]; // Red font for < 50%
+            }
           }
         }
       }
