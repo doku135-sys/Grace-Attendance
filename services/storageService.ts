@@ -1,4 +1,3 @@
-
 import { Member, AttendanceRecord, AdminUser, UserRole } from '../types';
 import { supabase } from './supabaseClient';
 
@@ -13,17 +12,40 @@ const ROLE_KEY = 'church_user_role';
 export const storageService = {
   // Authentication
   fetchUsers: async (): Promise<AdminUser[]> => {
-    const { data, error } = await supabase.from('users').select('*');
-    if (error) {
-      console.error('Error fetching users:', error);
-      return [];
+    try {
+      const { data, error } = await supabase.from('users').select('*');
+      if (error) {
+        console.warn('Note: Using local fallback. Fetching users from Supabase returned:', error.message);
+        return storageService.getLocalUsersFallback();
+      }
+      localStorage.setItem(USERS_KEY, JSON.stringify(data));
+      return data as AdminUser[];
+    } catch (e: any) {
+      console.warn('Note: Offline/local fallback active. Fetching users exception:', e?.message || e);
+      return storageService.getLocalUsersFallback();
     }
-    localStorage.setItem(USERS_KEY, JSON.stringify(data));
-    return data as AdminUser[];
+  },
+
+  getLocalUsersFallback: (): AdminUser[] => {
+    const local = localStorage.getItem(USERS_KEY);
+    if (local) {
+      try {
+        return JSON.parse(local);
+      } catch (e) {
+        // ignore JSON parse error and return defaults below
+      }
+    }
+    const defaults = [
+      { username: 'admin', password: 'admin', role: 'admin' },
+      { username: 'scanner', password: 'scanner', role: 'scanner' },
+      { username: 'superadmin', password: 'superadmin', role: 'superadmin' }
+    ];
+    localStorage.setItem(USERS_KEY, JSON.stringify(defaults));
+    return defaults as AdminUser[];
   },
 
   getAdminCreds: (): AdminUser => {
-    const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+    const users = storageService.getLocalUsersFallback();
     const admin = users.find((u: any) => u.role === 'admin');
     if (admin) return admin;
 
@@ -46,7 +68,7 @@ export const storageService = {
   },
 
   getScannerCreds: (): AdminUser => {
-    const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+    const users = storageService.getLocalUsersFallback();
     const scanner = users.find((u: any) => u.role === 'scanner');
     if (scanner) return scanner;
 
@@ -73,12 +95,21 @@ export const storageService = {
     creds.password = newPassword;
     localStorage.setItem(ADMIN_KEY, JSON.stringify(creds));
     
-    const { error } = await supabase
-      .from('users')
-      .update({ password: newPassword })
-      .eq('role', 'admin');
+    // Update local users fallback list too
+    const users = storageService.getLocalUsersFallback();
+    const updatedUsers = users.map((u: any) => u.role === 'admin' ? { ...u, password: newPassword } : u);
+    localStorage.setItem(USERS_KEY, JSON.stringify(updatedUsers));
     
-    if (error) console.error('Error updating admin password in Supabase:', error);
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ password: newPassword })
+        .eq('role', 'admin');
+      
+      if (error) console.warn('Supabase password update failed (will use local fallback):', error.message);
+    } catch (e: any) {
+      console.warn('Supabase password update exception (will use local fallback):', e?.message || e);
+    }
     await storageService.fetchUsers();
   },
 
@@ -87,29 +118,47 @@ export const storageService = {
     creds.password = newPassword;
     localStorage.setItem(SCANNER_KEY, JSON.stringify(creds));
 
-    const { error } = await supabase
-      .from('users')
-      .update({ password: newPassword })
-      .eq('role', 'scanner');
-    
-    if (error) console.error('Error updating scanner password in Supabase:', error);
+    // Update local users fallback list too
+    const users = storageService.getLocalUsersFallback();
+    const updatedUsers = users.map((u: any) => u.role === 'scanner' ? { ...u, password: newPassword } : u);
+    localStorage.setItem(USERS_KEY, JSON.stringify(updatedUsers));
+
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ password: newPassword })
+        .eq('role', 'scanner');
+      
+      if (error) console.warn('Supabase scanner password update failed:', error.message);
+    } catch (e: any) {
+      console.warn('Supabase scanner password update exception:', e?.message || e);
+    }
     await storageService.fetchUsers();
   },
 
   getSuperAdminCreds: (): AdminUser => {
-    const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+    const users = storageService.getLocalUsersFallback();
     const superadmin = users.find((u: any) => u.role === 'superadmin');
     if (superadmin) return superadmin;
     return { username: 'superadmin', password: 'superadmin', role: 'superadmin' };
   },
 
   updateSuperAdminPassword: async (newPassword: string) => {
-    const { error } = await supabase
-      .from('users')
-      .update({ password: newPassword })
-      .eq('role', 'superadmin');
-    
-    if (error) console.error('Error updating superadmin password in Supabase:', error);
+    // Update local users fallback list too
+    const users = storageService.getLocalUsersFallback();
+    const updatedUsers = users.map((u: any) => u.role === 'superadmin' ? { ...u, password: newPassword } : u);
+    localStorage.setItem(USERS_KEY, JSON.stringify(updatedUsers));
+
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ password: newPassword })
+        .eq('role', 'superadmin');
+      
+      if (error) console.warn('Supabase superadmin password update failed:', error.message);
+    } catch (e: any) {
+      console.warn('Supabase superadmin password update exception:', e?.message || e);
+    }
     await storageService.fetchUsers();
   },
 
@@ -138,13 +187,18 @@ export const storageService = {
   },
 
   fetchMembers: async (): Promise<Member[]> => {
-    const { data, error } = await supabase.from('members').select('*');
-    if (error) {
-      console.error('Error fetching members:', error);
+    try {
+      const { data, error } = await supabase.from('members').select('*');
+      if (error) {
+        console.warn('Note: Using local fallback. Fetching members from Supabase returned:', error.message);
+        return storageService.getMembers();
+      }
+      localStorage.setItem(MEMBERS_KEY, JSON.stringify(data));
+      return data as Member[];
+    } catch (e: any) {
+      console.warn('Note: Offline/local fallback active. Fetching members exception:', e?.message || e);
       return storageService.getMembers();
     }
-    localStorage.setItem(MEMBERS_KEY, JSON.stringify(data));
-    return data as Member[];
   },
 
   saveMember: async (member: Member) => {
@@ -152,10 +206,13 @@ export const storageService = {
     const updated = [...members, member];
     localStorage.setItem(MEMBERS_KEY, JSON.stringify(updated));
     
-    const { error } = await supabase.from('members').insert([member]);
-    if (error) {
-      console.error('CRITICAL: Failed to save member to Supabase.', error);
-      alert(`Database Error: ${error.message}. Please check if the 'members' table has 'serviceGroup' and 'joinedDate' columns.`);
+    try {
+      const { error } = await supabase.from('members').insert([member]);
+      if (error) {
+        console.warn('Supabase save member returned status:', error.message);
+      }
+    } catch (e: any) {
+      console.warn('Supabase save member exception:', e?.message || e);
     }
   },
 
@@ -164,10 +221,13 @@ export const storageService = {
     const updated = members.map(m => m.id === member.id ? member : m);
     localStorage.setItem(MEMBERS_KEY, JSON.stringify(updated));
 
-    const { error } = await supabase.from('members').update(member).eq('id', member.id);
-    if (error) {
-      console.error('CRITICAL: Failed to update member in Supabase.', error);
-      alert(`Database Error: ${error.message}`);
+    try {
+      const { error } = await supabase.from('members').update(member).eq('id', member.id);
+      if (error) {
+        console.warn('Supabase update member returned status:', error.message);
+      }
+    } catch (e: any) {
+      console.warn('Supabase update member exception:', e?.message || e);
     }
   },
 
@@ -180,9 +240,12 @@ export const storageService = {
     const updatedAttendance = attendance.filter(r => r.memberId !== id);
     localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(updatedAttendance));
 
-    // Supabase deletions
-    await supabase.from('attendance').delete().eq('memberId', id);
-    await supabase.from('members').delete().eq('id', id);
+    try {
+      await supabase.from('attendance').delete().eq('memberId', id);
+      await supabase.from('members').delete().eq('id', id);
+    } catch (e: any) {
+      console.warn('Supabase delete member exception:', e?.message || e);
+    }
     
     return updatedMembers;
   },
@@ -194,13 +257,18 @@ export const storageService = {
   },
 
   fetchAttendance: async (): Promise<AttendanceRecord[]> => {
-    const { data, error } = await supabase.from('attendance').select('*');
-    if (error) {
-      console.error('Error fetching attendance:', error);
+    try {
+      const { data, error } = await supabase.from('attendance').select('*');
+      if (error) {
+        console.warn('Note: Using local fallback. Fetching attendance from Supabase returned:', error.message);
+        return storageService.getAttendance();
+      }
+      localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(data));
+      return data as AttendanceRecord[];
+    } catch (e: any) {
+      console.warn('Note: Offline/local fallback active. Fetching attendance exception:', e?.message || e);
       return storageService.getAttendance();
     }
-    localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(data));
-    return data as AttendanceRecord[];
   },
 
   recordAttendance: async (memberId: string) => {
@@ -212,7 +280,13 @@ export const storageService = {
     const date = `${year}-${month}-${day}`;
     
     // Fetch latest attendance to ensure we don't have stale local data
-    const records = await storageService.fetchAttendance();
+    let records: AttendanceRecord[] = [];
+    try {
+      records = await storageService.fetchAttendance();
+    } catch (e: any) {
+      console.warn('Exception fetching attendance during record (will proceed with local cache):', e?.message || e);
+      records = storageService.getAttendance();
+    }
     
     const alreadyPresent = records.some(r => r.memberId === memberId && r.date === date);
     if (alreadyPresent) return false;
@@ -227,10 +301,13 @@ export const storageService = {
     const updatedRecords = [...records, newRecord];
     localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(updatedRecords));
     
-    const { error } = await supabase.from('attendance').insert([newRecord]);
-    if (error) {
-      console.error('Error recording attendance to Supabase:', error);
-      // If Supabase fails, we might want to revert local storage or handle it
+    try {
+      const { error } = await supabase.from('attendance').insert([newRecord]);
+      if (error) {
+        console.warn('Supabase record attendance returned status:', error.message);
+      }
+    } catch (e: any) {
+      console.warn('Supabase record attendance exception:', e?.message || e);
     }
     
     return true;
@@ -238,7 +315,13 @@ export const storageService = {
 
   recordManualAttendance: async (memberId: string, date: string) => {
     // Fetch latest attendance to ensure we don't have stale local data
-    const records = await storageService.fetchAttendance();
+    let records: AttendanceRecord[] = [];
+    try {
+      records = await storageService.fetchAttendance();
+    } catch (e: any) {
+      console.warn('Exception fetching attendance during manual record (will proceed with local cache):', e?.message || e);
+      records = storageService.getAttendance();
+    }
     
     const alreadyPresent = records.some(r => r.memberId === memberId && r.date === date);
     if (alreadyPresent) return false;
@@ -257,9 +340,13 @@ export const storageService = {
     const updatedRecords = [...records, newRecord];
     localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(updatedRecords));
     
-    const { error } = await supabase.from('attendance').insert([newRecord]);
-    if (error) {
-      console.error('Error recording manual attendance to Supabase:', error);
+    try {
+      const { error } = await supabase.from('attendance').insert([newRecord]);
+      if (error) {
+        console.warn('Supabase record manual attendance returned status:', error.message);
+      }
+    } catch (e: any) {
+      console.warn('Supabase record manual attendance exception:', e?.message || e);
     }
     
     return true;
@@ -270,8 +357,12 @@ export const storageService = {
     const updatedRecords = records.filter(r => !(r.memberId === memberId && r.timestamp === timestamp));
     localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(updatedRecords));
 
-    const { error } = await supabase.from('attendance').delete().match({ memberId, timestamp });
-    if (error) console.error('Error deleting attendance from Supabase:', error);
+    try {
+      const { error } = await supabase.from('attendance').delete().match({ memberId, timestamp });
+      if (error) console.warn('Supabase delete attendance record returned status:', error.message);
+    } catch (e: any) {
+      console.warn('Supabase delete attendance record exception:', e?.message || e);
+    }
 
     return updatedRecords;
   },
@@ -287,11 +378,19 @@ export const storageService = {
   importFullState: async (data: { members: Member[], attendance: AttendanceRecord[] }) => {
     if (data.members) {
       localStorage.setItem(MEMBERS_KEY, JSON.stringify(data.members));
-      await supabase.from('members').upsert(data.members);
+      try {
+        await supabase.from('members').upsert(data.members);
+      } catch (e: any) {
+        console.warn('Supabase upsert members exception during import:', e?.message || e);
+      }
     }
     if (data.attendance) {
       localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(data.attendance));
-      await supabase.from('attendance').upsert(data.attendance);
+      try {
+        await supabase.from('attendance').upsert(data.attendance);
+      } catch (e: any) {
+        console.warn('Supabase upsert attendance exception during import:', e?.message || e);
+      }
     }
   },
 

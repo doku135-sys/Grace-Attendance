@@ -32,6 +32,8 @@ const AttendanceLog: React.FC<AttendanceLogProps> = ({ members, attendance, onUp
     serviceGroup: 'KC 1' as ServiceGroup
   });
 
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
+
   const filteredData = useMemo(() => {
     return attendance
       .filter(record => record.date.startsWith(filterMonth))
@@ -159,7 +161,7 @@ const AttendanceLog: React.FC<AttendanceLogProps> = ({ members, attendance, onUp
     const tableHeaders = ['No.', 'Name', ...reportDates.map(s => {
       const [y, m, day] = s.split('-').map(Number);
       return new Date(y, m - 1, day).toLocaleDateString('en-US', { day: 'numeric' });
-    }), 'Total'];
+    }), 'Total', '%'];
     
     const tableRows = groupMembers.map((m, index) => {
       const row = [(index + 1).toString(), m.name];
@@ -169,7 +171,10 @@ const AttendanceLog: React.FC<AttendanceLogProps> = ({ members, attendance, onUp
         if (present) totalPresent++;
         row.push(present ? 'P' : 'A');
       });
-      row.push(totalPresent.toString());
+      const totalDates = reportDates.length;
+      row.push(`${totalPresent}/${totalDates}`);
+      const percentage = totalDates > 0 ? Math.round((totalPresent / totalDates) * 100) : 0;
+      row.push(`${percentage}%`);
       return row;
     });
 
@@ -183,10 +188,11 @@ const AttendanceLog: React.FC<AttendanceLogProps> = ({ members, attendance, onUp
       columnStyles: { 
         0: { cellWidth: 10, halign: 'center' },
         1: { fontStyle: 'bold', cellWidth: 35 },
-        [tableHeaders.length - 1]: { fontStyle: 'bold', halign: 'center', cellWidth: 15 }
+        [tableHeaders.length - 2]: { fontStyle: 'bold', halign: 'center', cellWidth: 15 },
+        [tableHeaders.length - 1]: { fontStyle: 'bold', halign: 'center', cellWidth: 12 }
       },
       didParseCell: (data) => {
-        if (data.section === 'body' && data.column.index > 1 && data.column.index < tableHeaders.length - 1) {
+        if (data.section === 'body' && data.column.index > 1 && data.column.index < tableHeaders.length - 2) {
           if (data.cell.text[0] === 'P') {
             data.cell.styles.textColor = [16, 185, 129]; // Emerald
           } else {
@@ -202,21 +208,31 @@ const AttendanceLog: React.FC<AttendanceLogProps> = ({ members, attendance, onUp
 
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!manualEntry.memberId) {
-      alert('Please select a member');
+    if (selectedMemberIds.length === 0) {
+      alert('Please select at least one member');
       return;
     }
 
-    const success = await storageService.recordManualAttendance(manualEntry.memberId, manualEntry.date);
-    if (success) {
-      await onUpdate();
-      setShowManualModal(false);
-      setManualEntry({
-        ...manualEntry,
-        memberId: ''
-      });
+    let successCount = 0;
+    let duplicateCount = 0;
+
+    for (const memberId of selectedMemberIds) {
+      const success = await storageService.recordManualAttendance(memberId, manualEntry.date);
+      if (success) {
+        successCount++;
+      } else {
+        duplicateCount++;
+      }
+    }
+
+    await onUpdate();
+    setShowManualModal(false);
+    setSelectedMemberIds([]);
+    
+    if (duplicateCount > 0) {
+      alert(`Recorded attendance for ${successCount} member(s). ${duplicateCount} member(s) were already recorded for this date.`);
     } else {
-      alert('This member is already recorded for the selected date.');
+      alert(`Successfully recorded attendance for ${successCount} member(s).`);
     }
   };
 
@@ -250,7 +266,10 @@ const AttendanceLog: React.FC<AttendanceLogProps> = ({ members, attendance, onUp
           />
           {userRole === 'superadmin' && (
             <button 
-              onClick={() => setShowManualModal(true)}
+              onClick={() => {
+                setSelectedMemberIds([]);
+                setShowManualModal(true);
+              }}
               className="px-5 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition flex items-center gap-2 shadow-lg shadow-indigo-200 font-bold"
             >
               <i className="fas fa-plus"></i>
@@ -334,7 +353,10 @@ const AttendanceLog: React.FC<AttendanceLogProps> = ({ members, attendance, onUp
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Ministry Category</label>
                 <select 
                   value={manualEntry.category}
-                  onChange={e => setManualEntry({...manualEntry, category: e.target.value as MemberCategory, memberId: ''})}
+                  onChange={e => {
+                    setManualEntry({...manualEntry, category: e.target.value as MemberCategory, memberId: ''});
+                    setSelectedMemberIds([]);
+                  }}
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition"
                 >
                   {CATEGORIES.map((cat: MemberCategory) => <option key={cat} value={cat}>{cat}</option>)}
@@ -344,27 +366,68 @@ const AttendanceLog: React.FC<AttendanceLogProps> = ({ members, attendance, onUp
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Service Group</label>
                 <select 
                   value={manualEntry.serviceGroup}
-                  onChange={e => setManualEntry({...manualEntry, serviceGroup: e.target.value as ServiceGroup, memberId: ''})}
+                  onChange={e => {
+                    setManualEntry({...manualEntry, serviceGroup: e.target.value as ServiceGroup, memberId: ''});
+                    setSelectedMemberIds([]);
+                  }}
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition"
                 >
                   {SERVICE_GROUPS.map((group: ServiceGroup) => <option key={group} value={group}>{group}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Select Member</label>
-                <select 
-                  required
-                  value={manualEntry.memberId}
-                  onChange={e => setManualEntry({...manualEntry, memberId: e.target.value})}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition"
-                >
-                  <option value="">-- Select Member --</option>
-                  {filteredMembersForManual.map(m => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
-                  ))}
-                </select>
-                {filteredMembersForManual.length === 0 && (
-                  <p className="text-[10px] text-rose-500 font-bold mt-1 ml-1">No members found in this category/group.</p>
+                <div className="flex justify-between items-center mb-1.5 ml-1">
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest">Select Members</label>
+                  {filteredMembersForManual.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const allIds = filteredMembersForManual.map(m => m.id);
+                        const isAllSelected = selectedMemberIds.length === allIds.length;
+                        setSelectedMemberIds(isAllSelected ? [] : allIds);
+                      }}
+                      className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition"
+                    >
+                      {selectedMemberIds.length === filteredMembersForManual.length ? 'Deselect All' : 'Select All'}
+                    </button>
+                  )}
+                </div>
+
+                {filteredMembersForManual.length === 0 ? (
+                  <div className="w-full px-4 py-6 bg-slate-50 border border-slate-200 rounded-2xl text-center text-sm text-slate-400">
+                    No members found in this category/group.
+                  </div>
+                ) : (
+                  <div className="w-full max-h-48 overflow-y-auto border border-slate-200 rounded-2xl p-3 bg-slate-50/50 space-y-2 focus-within:ring-2 focus-within:ring-indigo-500 transition">
+                    {filteredMembersForManual.map(m => {
+                      const isChecked = selectedMemberIds.includes(m.id);
+                      return (
+                        <label 
+                          key={m.id} 
+                          className="flex items-center gap-3 px-3 py-2 bg-white border border-slate-100 rounded-xl cursor-pointer hover:bg-indigo-50/30 transition shadow-sm"
+                        >
+                          <input 
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              setSelectedMemberIds(prev => 
+                                prev.includes(m.id) 
+                                  ? prev.filter(id => id !== m.id)
+                                  : [...prev, m.id]
+                              );
+                            }}
+                            className="w-4.5 h-4.5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 focus:ring-2 transition"
+                          />
+                          <span className="text-sm font-bold text-slate-700">{m.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                {filteredMembersForManual.length > 0 && (
+                  <p className="text-[10px] text-slate-400 font-bold mt-1.5 ml-1">
+                    Selected: {selectedMemberIds.length} of {filteredMembersForManual.length} member(s)
+                  </p>
                 )}
               </div>
               <div>
@@ -388,10 +451,10 @@ const AttendanceLog: React.FC<AttendanceLogProps> = ({ members, attendance, onUp
                 </button>
                 <button
                   type="submit"
-                  disabled={!manualEntry.memberId}
+                  disabled={selectedMemberIds.length === 0}
                   className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Add Record
+                  Add {selectedMemberIds.length > 0 ? `${selectedMemberIds.length} Record(s)` : 'Records'}
                 </button>
               </div>
             </form>
